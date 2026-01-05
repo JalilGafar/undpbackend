@@ -1,0 +1,372 @@
+const express = require('express');
+const router = express.Router();
+var con = require('./../config/dbcon');
+var SQL = require('sql-template-strings');
+
+
+router.use(function (req, res, next) {
+    res.header(
+        "Access-Control-Allow-Headers",
+        "Origin, Content-Type, Accept"
+    );
+    next();
+});
+
+
+router.post("/attribut", (req, res) => {
+    var attribForm = req.body
+    console.log('begining Attribut tools  insertion !');
+    con.query(SQL 
+        `
+           INSERT INTO mat_predia_crev_note (
+                cons_id, comp_id,
+                note_1, comment_1, note_2, comment_2, note_3, comment_3, note_4, comment_4,
+                note_5, comment_5, note_6, comment_6, note_7, comment_7, note_8, comment_8,
+                note_9, comment_9, note_10, comment_10, note_11, comment_11, note_12, comment_12, note_13, comment_13
+            )
+            VALUES (
+                ${attribForm.cons_id}, ${attribForm.comp_id},
+                ${attribForm.note_1}, ${attribForm.comment_1}, ${attribForm.note_2}, ${attribForm.comment_2}, ${attribForm.note_3}, ${attribForm.comment_3},
+                ${attribForm.note_4}, ${attribForm.comment_4}, ${attribForm.note_5}, ${attribForm.comment_5}, ${attribForm.note_6}, ${attribForm.comment_6},
+                ${attribForm.note_7}, ${attribForm.comment_7}, ${attribForm.note_8}, ${attribForm.comment_8}, ${attribForm.note_9}, ${attribForm.comment_9},
+                ${attribForm.note_10}, ${attribForm.comment_10}, ${attribForm.note_11}, ${attribForm.comment_11},
+                ${attribForm.note_12}, ${attribForm.comment_12}, ${attribForm.note_13}, ${attribForm.comment_13}
+            )
+            ON DUPLICATE KEY UPDATE
+                note_1 = VALUES(note_1),
+                comment_1 = VALUES(comment_1),
+                note_2 = VALUES(note_2),
+                comment_2 = VALUES(comment_2),
+                note_3 = VALUES(note_3),
+                comment_3 = VALUES(comment_3),
+                note_4 = VALUES(note_4),
+                comment_4 = VALUES(comment_4),
+                note_5 = VALUES(note_5),
+                comment_5 = VALUES(comment_5),
+                note_6 = VALUES(note_6),
+                comment_6 = VALUES(comment_6),
+                note_7 = VALUES(note_7),
+                comment_7 = VALUES(comment_7),
+                note_8 = VALUES(note_8),
+                comment_8 = VALUES(comment_8),
+                note_9 = VALUES(note_9),
+                comment_9 = VALUES(comment_9),
+                note_10 = VALUES(note_10),
+                comment_10 = VALUES(comment_10),
+                note_11 = VALUES(note_11),
+                comment_11 = VALUES(comment_11),
+                note_12 = VALUES(note_12),
+                comment_12 = VALUES(comment_12),
+                note_13 = VALUES(note_13),
+                comment_13 = VALUES(comment_13);
+
+        `,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+    )
+});
+
+
+router.post("/integral", (req, res) => {
+    var attribForm = req.body
+    console.log('begining Mat Integ tools  insertion !');
+    con.query(SQL 
+        `
+           INSERT INTO matrice_diag_integral_note (
+                cons_id, comp_id,
+                note_1, comt_1, 
+                note_2, comt_2, 
+                note_3, comt_3, 
+                note_4, comt_4,
+                note_5, comt_5, 
+                note_6, comt_6, 
+                note_7, comt_7, 
+                note_8, comt_8,
+                note_9, comt_9, 
+                note_10, comt_10, 
+                note_11, comt_11, 
+                note_12, comt_12,
+                note_13, comt_13, 
+                note_14, comt_14,
+                note_15, comt_15, 
+                note_16, comt_16, 
+                note_17, comt_17, 
+                note_18, comt_18,
+                note_19, comt_19, 
+                note_20, comt_20, 
+                note_21, comt_21, 
+                note_22, comt_22,
+                note_23, comt_23, 
+                note_24, comt_24,
+                note_25, comt_25, 
+                note_26, comt_26, 
+                note_27, comt_27, 
+                note_28, comt_28,
+                note_29, comt_29, 
+                note_30, comt_30, 
+                note_31, comt_31, 
+                note_32, comt_32,
+                note_33, comt_33, 
+                note_34, comt_34,
+                note_35, comt_35, 
+                note_36, comt_36, 
+                note_37, comt_37, 
+                note_38, comt_38,
+                note_39, comt_39, 
+                note_40, comt_40, 
+                note_41, comt_41, 
+                note_42, comt_42,
+                note_43, comt_43, 
+                note_44, comt_44,
+                note_45, comt_45, 
+                note_46, comt_46, 
+                note_47, comt_47, 
+                note_48, comt_48,
+                note_49, comt_49, 
+                note_50, comt_50, 
+                note_51, comt_51, 
+                note_52, comt_52,
+                note_53, comt_53, 
+                note_54, comt_54,
+                note_55, comt_55, 
+                note_56, comt_56, 
+                note_57, comt_57, 
+                note_58, comt_58,
+                note_59, comt_59, 
+                note_60, comt_60, 
+                note_61, comt_61, 
+                note_62, comt_62,
+                difficult_1, difficult_2, difficult_3,
+                force_1, force_2, force_3,
+                faiblesse_1, faiblesse_2, faiblesse_3,
+                besoin_1, besoin_2, besoin_3
+            )
+            VALUES (
+                ${attribForm.cons_id}, ${attribForm.comp_id},
+                ${attribForm.note_1}, ${attribForm.comt_1}, 
+                ${attribForm.note_2}, ${attribForm.comt_2}, 
+                ${attribForm.note_3}, ${attribForm.comt_3},
+                ${attribForm.note_4}, ${attribForm.comt_4},
+                ${attribForm.note_5}, ${attribForm.comt_5}, 
+                ${attribForm.note_6}, ${attribForm.comt_6},
+                ${attribForm.note_7}, ${attribForm.comt_7},
+                ${attribForm.note_8}, ${attribForm.comt_8},
+                ${attribForm.note_9}, ${attribForm.comt_9},
+                ${attribForm.note_10}, ${attribForm.comt_10}, 
+                ${attribForm.note_11}, ${attribForm.comt_11},
+                ${attribForm.note_12}, ${attribForm.comt_12},
+                ${attribForm.note_13}, ${attribForm.comt_13},
+                ${attribForm.note_14}, ${attribForm.comt_14},
+                ${attribForm.note_15}, ${attribForm.comt_15}, 
+                ${attribForm.note_16}, ${attribForm.comt_16},
+                ${attribForm.note_17}, ${attribForm.comt_17},
+                ${attribForm.note_18}, ${attribForm.comt_18},
+                ${attribForm.note_19}, ${attribForm.comt_19},
+                ${attribForm.note_20}, ${attribForm.comt_20}, 
+                ${attribForm.note_21}, ${attribForm.comt_21},
+                ${attribForm.note_22}, ${attribForm.comt_22},
+                ${attribForm.note_23}, ${attribForm.comt_23},
+                ${attribForm.note_24}, ${attribForm.comt_24},
+                ${attribForm.note_25}, ${attribForm.comt_25}, 
+                ${attribForm.note_26}, ${attribForm.comt_26},
+                ${attribForm.note_27}, ${attribForm.comt_27},
+                ${attribForm.note_28}, ${attribForm.comt_28},
+                ${attribForm.note_29}, ${attribForm.comt_29},
+                ${attribForm.note_30}, ${attribForm.comt_30}, 
+                ${attribForm.note_31}, ${attribForm.comt_31},
+                ${attribForm.note_32}, ${attribForm.comt_32},
+                ${attribForm.note_33}, ${attribForm.comt_33},
+                ${attribForm.note_34}, ${attribForm.comt_34},
+                ${attribForm.note_35}, ${attribForm.comt_35}, 
+                ${attribForm.note_36}, ${attribForm.comt_36},
+                ${attribForm.note_37}, ${attribForm.comt_37},
+                ${attribForm.note_38}, ${attribForm.comt_38},
+                ${attribForm.note_39}, ${attribForm.comt_39},
+                ${attribForm.note_40}, ${attribForm.comt_40}, 
+                ${attribForm.note_41}, ${attribForm.comt_41},
+                ${attribForm.note_42}, ${attribForm.comt_42},
+                ${attribForm.note_43}, ${attribForm.comt_43},
+                ${attribForm.note_44}, ${attribForm.comt_44},
+                ${attribForm.note_45}, ${attribForm.comt_45}, 
+                ${attribForm.note_46}, ${attribForm.comt_46},
+                ${attribForm.note_47}, ${attribForm.comt_47},
+                ${attribForm.note_48}, ${attribForm.comt_48},
+                ${attribForm.note_49}, ${attribForm.comt_49},
+                ${attribForm.note_50}, ${attribForm.comt_50}, 
+                ${attribForm.note_51}, ${attribForm.comt_51},
+                ${attribForm.note_52}, ${attribForm.comt_52},
+                ${attribForm.note_53}, ${attribForm.comt_53},
+                ${attribForm.note_54}, ${attribForm.comt_54},
+                ${attribForm.note_55}, ${attribForm.comt_55}, 
+                ${attribForm.note_56}, ${attribForm.comt_56},
+                ${attribForm.note_57}, ${attribForm.comt_57},
+                ${attribForm.note_58}, ${attribForm.comt_58},
+                ${attribForm.note_59}, ${attribForm.comt_59},
+                ${attribForm.note_60}, ${attribForm.comt_60}, 
+                ${attribForm.note_61}, ${attribForm.comt_61},
+                ${attribForm.note_62}, ${attribForm.comt_62},
+                ${attribForm.difficult_1}, ${attribForm.difficult_2}, ${attribForm.difficult_3},
+                ${attribForm.force_1}, ${attribForm.force_2}, ${attribForm.force_3},
+                ${attribForm.faiblesse_1}, ${attribForm.faiblesse_2}, ${attribForm.faiblesse_3},
+                ${attribForm.besoin_1}, ${attribForm.besoin_2}, ${attribForm.besoin_3}
+            )
+            ON DUPLICATE KEY UPDATE
+                note_1 = VALUES(note_1), comt_1 = VALUES(comt_1),
+                note_2 = VALUES(note_2), comt_2 = VALUES(comt_2),
+                note_3 = VALUES(note_3), comt_3 = VALUES(comt_3),
+                note_4 = VALUES(note_4), comt_4 = VALUES(comt_4),
+                note_5 = VALUES(note_5), comt_5 = VALUES(comt_5),
+                note_6 = VALUES(note_6), comt_6 = VALUES(comt_6),
+                note_7 = VALUES(note_7), comt_7 = VALUES(comt_7),
+                note_8 = VALUES(note_8), comt_8 = VALUES(comt_8),
+                note_9 = VALUES(note_9), comt_9 = VALUES(comt_9),
+                note_10 = VALUES(note_10), comt_10 = VALUES(comt_10),
+                note_11 = VALUES(note_11), comt_11 = VALUES(comt_11),
+                note_12 = VALUES(note_12), comt_12 = VALUES(comt_12),
+                note_13 = VALUES(note_13), comt_13 = VALUES(comt_13),
+                note_14 = VALUES(note_14), comt_14 = VALUES(comt_14),
+                note_15 = VALUES(note_15), comt_15 = VALUES(comt_15),
+                note_16 = VALUES(note_16), comt_16 = VALUES(comt_16),
+                note_17 = VALUES(note_17), comt_17 = VALUES(comt_17),
+                note_18 = VALUES(note_18), comt_18 = VALUES(comt_18),
+                note_19 = VALUES(note_19), comt_19 = VALUES(comt_19),
+                note_20 = VALUES(note_20), comt_20 = VALUES(comt_20),
+                note_21 = VALUES(note_21), comt_21 = VALUES(comt_21),
+                note_22 = VALUES(note_22), comt_22 = VALUES(comt_22),
+                note_23 = VALUES(note_23), comt_23 = VALUES(comt_23),
+                note_24 = VALUES(note_24), comt_24 = VALUES(comt_24),
+                note_25 = VALUES(note_25), comt_25 = VALUES(comt_25),
+                note_26 = VALUES(note_26), comt_26 = VALUES(comt_26),
+                note_27 = VALUES(note_27), comt_27 = VALUES(comt_27),
+                note_28 = VALUES(note_28), comt_28 = VALUES(comt_28),
+                note_29 = VALUES(note_29), comt_29 = VALUES(comt_29),
+                note_30 = VALUES(note_30), comt_30 = VALUES(comt_30),
+                note_31 = VALUES(note_31), comt_31 = VALUES(comt_31),
+                note_32 = VALUES(note_32), comt_32 = VALUES(comt_32),
+                note_33 = VALUES(note_33), comt_33 = VALUES(comt_33),
+                note_34 = VALUES(note_34), comt_34 = VALUES(comt_34),
+                note_35 = VALUES(note_35), comt_35 = VALUES(comt_35),
+                note_36 = VALUES(note_36), comt_36 = VALUES(comt_36),
+                note_37 = VALUES(note_37), comt_37 = VALUES(comt_37),
+                note_38 = VALUES(note_38), comt_38 = VALUES(comt_38),
+                note_39 = VALUES(note_39), comt_39 = VALUES(comt_39),
+                note_40 = VALUES(note_40), comt_40 = VALUES(comt_40),
+                note_41 = VALUES(note_41), comt_41 = VALUES(comt_41),
+                note_42 = VALUES(note_42), comt_42 = VALUES(comt_42),
+                note_43 = VALUES(note_43), comt_43 = VALUES(comt_43),
+                note_44 = VALUES(note_44), comt_44 = VALUES(comt_44),
+                note_45 = VALUES(note_45), comt_45 = VALUES(comt_45),
+                note_46 = VALUES(note_46), comt_46 = VALUES(comt_46),
+                note_47 = VALUES(note_47), comt_47 = VALUES(comt_47),
+                note_48 = VALUES(note_48), comt_48 = VALUES(comt_48),
+                note_49 = VALUES(note_49), comt_49 = VALUES(comt_49),
+                note_50 = VALUES(note_50), comt_50 = VALUES(comt_50),
+                note_51 = VALUES(note_51), comt_51 = VALUES(comt_51),
+                note_52 = VALUES(note_52), comt_52 = VALUES(comt_52),
+                note_53 = VALUES(note_53), comt_53 = VALUES(comt_53),
+                note_54 = VALUES(note_54), comt_54 = VALUES(comt_54),
+                note_55 = VALUES(note_55), comt_55 = VALUES(comt_55),
+                note_56 = VALUES(note_56), comt_56 = VALUES(comt_56),
+                note_57 = VALUES(note_57), comt_57 = VALUES(comt_57),
+                note_58 = VALUES(note_58), comt_58 = VALUES(comt_58),
+                note_59 = VALUES(note_59), comt_59 = VALUES(comt_59),
+                note_60 = VALUES(note_60), comt_60 = VALUES(comt_60),
+                note_61 = VALUES(note_61), comt_61 = VALUES(comt_61),
+                note_62 = VALUES(note_62), comt_62 = VALUES(comt_62),
+                difficult_1 = VALUES(difficult_1), difficult_2 = VALUES(difficult_2), difficult_3 = VALUES(difficult_3),
+                force_1 = VALUES(force_1), force_2 = VALUES(force_2), force_3 = VALUES(force_3),
+                faiblesse_1 = VALUES(faiblesse_1), faiblesse_2 = VALUES(faiblesse_2), faiblesse_3 = VALUES(faiblesse_3),
+                besoin_1 = VALUES(besoin_1), besoin_2 = VALUES(besoin_2), besoin_3 = VALUES(besoin_3)
+                ;
+
+        `,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+    )
+});
+
+router.get("/attribut", (req, res) => {
+    var userId = req.query.idUser
+    var compId = req.query.idComp
+    console.log(userId, compId)
+    con.query(SQL
+        `SELECT * FROM mat_predia_crev_note where (cons_id = ${userId} && comp_id = ${compId} )  ;`,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+    )
+});
+
+router.get("/integral", (req, res) => {
+    var userId = req.query.idUser
+    var compId = req.query.idComp
+    console.log(userId, compId)
+    con.query(SQL
+        `SELECT * FROM matrice_diag_integral_note where (cons_id = ${userId} && comp_id = ${compId} )  ;`,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+    )
+});
+
+///*********** Route to get mat Predia Label */
+router.get("/matPrediaLabel", (req, res) => {
+    con.query(SQL
+        `SELECT * FROM matrice_prediagnostic;`,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+    )
+});
+
+//************Route to get Mat Integ Label */
+router.get("/matIntegLabel", (req, res) => {
+    con.query(SQL
+        `SELECT * FROM matrice_diag_integral;`,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+    )
+});
+
+
+
+module.exports = router;

@@ -22,15 +22,19 @@ router.post("/attribut", (req, res) => {
                 cons_id, comp_id,
                 note_1, comment_1, note_2, comment_2, note_3, comment_3, note_4, comment_4,
                 note_5, comment_5, note_6, comment_6, note_7, comment_7, note_8, comment_8,
-                note_9, comment_9, note_10, comment_10, note_11, comment_11, note_12, comment_12, note_13, comment_13
+                note_9, comment_9, note_10, comment_10, note_11, comment_11, note_12, comment_12, 
+                note_13, comment_13, note_14, comment_14, note_15, comment_15, note_16, comment_16, 
+                note_17, comment_17, note_18, comment_18, note_19, comment_19
             )
             VALUES (
                 ${attribForm.cons_id}, ${attribForm.comp_id},
                 ${attribForm.note_1}, ${attribForm.comment_1}, ${attribForm.note_2}, ${attribForm.comment_2}, ${attribForm.note_3}, ${attribForm.comment_3},
                 ${attribForm.note_4}, ${attribForm.comment_4}, ${attribForm.note_5}, ${attribForm.comment_5}, ${attribForm.note_6}, ${attribForm.comment_6},
                 ${attribForm.note_7}, ${attribForm.comment_7}, ${attribForm.note_8}, ${attribForm.comment_8}, ${attribForm.note_9}, ${attribForm.comment_9},
-                ${attribForm.note_10}, ${attribForm.comment_10}, ${attribForm.note_11}, ${attribForm.comment_11},
-                ${attribForm.note_12}, ${attribForm.comment_12}, ${attribForm.note_13}, ${attribForm.comment_13}
+                ${attribForm.note_10}, ${attribForm.comment_10}, ${attribForm.note_11}, ${attribForm.comment_11}, ${attribForm.note_12}, ${attribForm.comment_12}, 
+                ${attribForm.note_13}, ${attribForm.comment_13}, ${attribForm.note_14}, ${attribForm.comment_14}, ${attribForm.note_15}, ${attribForm.comment_15}, 
+                ${attribForm.note_16}, ${attribForm.comment_16}, ${attribForm.note_17}, ${attribForm.comment_17}, ${attribForm.note_18}, ${attribForm.comment_18}, 
+                ${attribForm.note_19}, ${attribForm.comment_19}
             )
             ON DUPLICATE KEY UPDATE
                 note_1 = VALUES(note_1),
@@ -58,7 +62,19 @@ router.post("/attribut", (req, res) => {
                 note_12 = VALUES(note_12),
                 comment_12 = VALUES(comment_12),
                 note_13 = VALUES(note_13),
-                comment_13 = VALUES(comment_13);
+                comment_13 = VALUES(comment_13),
+                note_14 = VALUES(note_14),
+                comment_14 = VALUES(comment_14),
+                note_15 = VALUES(note_15),
+                comment_15 = VALUES(comment_15),
+                note_16 = VALUES(note_16),
+                comment_16 = VALUES(comment_16),
+                note_17 = VALUES(note_17),
+                comment_17 = VALUES(comment_17),
+                note_18 = VALUES(note_18),
+                comment_18 = VALUES(comment_18),
+                note_19 = VALUES(note_19),
+                comment_19 = VALUES(comment_19);
 
         `,
         function (err, result, fields) {
@@ -73,6 +89,86 @@ router.post("/attribut", (req, res) => {
     )
 });
 
+router.post("/activities", (req, res) =>{
+    var activities = req.body
+    con.query(SQL 
+        `
+            INSERT INTO activity_tab 
+            (name, details, start, end, close, progress, status, dependencies, responsable, comments, cons_id, comp_id) 
+            VALUES (
+                ${activities.name}, 
+                ${activities.details}, 
+                ${activities.start}, 
+                ${activities.end}, 
+                ${activities.close}, 
+                ${activities.progress}, 
+                ${activities.status}, 
+                ${activities.dependencies}, 
+                ${activities.responsable}, 
+                ${activities.comments}, 
+                ${activities.cons_id}, 
+                ${activities.comp_id}
+            )  
+        `,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+     )
+} )
+
+router.post("/bmc", (req, res) =>{
+    var bmc = req.body
+    console.log(bmc)
+    con.query(SQL 
+        `
+            INSERT INTO bmc_data (
+                cons_id, comp_id,
+                customerSegments1, customerSegments2, customerSegments3,
+                valuePropositions1, valuePropositions2, valuePropositions3,
+                channels1, channels2, channels3,
+                problemeIdentifie1, problemeIdentifie2, problemeIdentifie3,
+                but1, but2, but3,
+                mesureImpact1, mesureImpact2, mesureImpact3,
+                customerRelationships1, customerRelationships2, customerRelationships3,
+                revenueStreams1, revenueStreams2, revenueStreams3,
+                keyResources1, keyResources2, keyResources3,
+                keyActivities1, keyActivities2, keyActivities3,
+                keyPartnerships1, keyPartnerships2, keyPartnerships3,
+                costStructure1, costStructure2, costStructure3
+                
+            ) VALUES (
+                ${bmc.cons_id}, ${bmc.comp_id},
+                ${bmc.customerSegments1}, ${bmc.customerSegments2}, ${bmc.customerSegments3}, 
+                ${bmc.valuePropositions1}, ${bmc.valuePropositions2}, ${bmc.valuePropositions3},
+                ${bmc.channels1}, ${bmc.channels2}, ${bmc.channels3},
+                ${bmc.problemeIdentifie1}, ${bmc.problemeIdentifie2}, ${bmc.problemeIdentifie3},
+                ${bmc.but1}, ${bmc.but2}, ${bmc.but3},
+                ${bmc.mesureImpact1}, ${bmc.mesureImpact2}, ${bmc.mesureImpact3},
+                ${bmc.customerRelationships1}, ${bmc.customerRelationships2}, ${bmc.customerRelationships3},
+                ${bmc.revenueStreams1}, ${bmc.revenueStreams2}, ${bmc.revenueStreams3},
+                ${bmc.keyResources1}, ${bmc.keyResources2}, ${bmc.keyResources3},
+                ${bmc.keyActivities1}, ${bmc.keyActivities2}, ${bmc.keyActivities3},
+                ${bmc.keyPartnerships1}, ${bmc.keyPartnerships2}, ${bmc.keyPartnerships3},
+                ${bmc.costStructure1}, ${bmc.costStructure2}, ${bmc.costStructure3}
+        )
+        `,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+     )
+} )
 
 router.post("/integral", (req, res) => {
     var attribForm = req.body
@@ -317,6 +413,24 @@ router.get("/attribut", (req, res) => {
     )
 });
 
+router.get("/activities", (req, res) => {
+    var userId = req.query.idUser
+    var compId = req.query.idComp
+    console.log('Visualisation '+userId, compId)
+    con.query(SQL
+        `SELECT * FROM activity_tab where (cons_id = ${userId} && comp_id = ${compId} )  ;`,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+    )
+});
+
 router.get("/integral", (req, res) => {
     var userId = req.query.idUser
     var compId = req.query.idComp
@@ -355,6 +469,25 @@ router.get("/matPrediaLabel", (req, res) => {
 router.get("/matIntegLabel", (req, res) => {
     con.query(SQL
         `SELECT * FROM matrice_diag_integral;`,
+        function (err, result, fields) {
+            if (err) {
+                console.log(err);
+                res.sendStatus(500);
+                return;
+            };
+            res.status(200).json(result);
+            return;
+        }
+    )
+});
+
+//************Route to get Business Model Canvas */
+router.get("/bmc", (req, res) => {
+    var userId = req.query.idUser
+    var compId = req.query.idComp
+    console.log(userId, compId)
+    con.query(SQL
+        `SELECT * FROM bmc_data where (cons_id = ${userId} && comp_id = ${compId} )  ;`,
         function (err, result, fields) {
             if (err) {
                 console.log(err);

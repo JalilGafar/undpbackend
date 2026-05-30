@@ -14,68 +14,71 @@ router.use(function (req, res, next) {
 
 
 router.post("/attribut", (req, res) => {
-    var attribForm = req.body
-    console.log('begining Attribut tools  insertion !');
-    con.query(SQL 
+    var d = req.body
+    console.log('begining Attribut tools insertion !');
+    con.query(SQL
         `
            INSERT INTO mat_predia_crev_note (
                 cons_id, comp_id,
                 note_1, comment_1, note_2, comment_2, note_3, comment_3, note_4, comment_4,
                 note_5, comment_5, note_6, comment_6, note_7, comment_7, note_8, comment_8,
-                note_9, comment_9, note_10, comment_10, note_11, comment_11, note_12, comment_12, 
-                note_13, comment_13, note_14, comment_14, note_15, comment_15, note_16, comment_16, 
-                note_17, comment_17, note_18, comment_18, note_19, comment_19
+                note_9, comment_9, note_10, comment_10, note_11, comment_11, note_12, comment_12,
+                note_13, comment_13, note_14, comment_14, note_15, comment_15, note_16, comment_16,
+                note_17, comment_17, note_18, comment_18, note_19, comment_19,
+                gen_nom_prenom, gen_sexe, gen_age, gen_telephone, gen_adresse,
+                gen_ville, gen_nom_entreprise, gen_type_entreprise, gen_email,
+                gen_activite_principale, gen_activite_autre, gen_ventes_mensuelles,
+                gen_role_entreprise, gen_situation_entreprise, gen_formation_interesse
             )
             VALUES (
-                ${attribForm.cons_id}, ${attribForm.comp_id},
-                ${attribForm.note_1}, ${attribForm.comment_1}, ${attribForm.note_2}, ${attribForm.comment_2}, ${attribForm.note_3}, ${attribForm.comment_3},
-                ${attribForm.note_4}, ${attribForm.comment_4}, ${attribForm.note_5}, ${attribForm.comment_5}, ${attribForm.note_6}, ${attribForm.comment_6},
-                ${attribForm.note_7}, ${attribForm.comment_7}, ${attribForm.note_8}, ${attribForm.comment_8}, ${attribForm.note_9}, ${attribForm.comment_9},
-                ${attribForm.note_10}, ${attribForm.comment_10}, ${attribForm.note_11}, ${attribForm.comment_11}, ${attribForm.note_12}, ${attribForm.comment_12}, 
-                ${attribForm.note_13}, ${attribForm.comment_13}, ${attribForm.note_14}, ${attribForm.comment_14}, ${attribForm.note_15}, ${attribForm.comment_15}, 
-                ${attribForm.note_16}, ${attribForm.comment_16}, ${attribForm.note_17}, ${attribForm.comment_17}, ${attribForm.note_18}, ${attribForm.comment_18}, 
-                ${attribForm.note_19}, ${attribForm.comment_19}
+                ${d.cons_id}, ${d.comp_id},
+                ${d.note_1}, ${d.comment_1}, ${d.note_2}, ${d.comment_2}, ${d.note_3}, ${d.comment_3},
+                ${d.note_4}, ${d.comment_4}, ${d.note_5}, ${d.comment_5}, ${d.note_6}, ${d.comment_6},
+                ${d.note_7}, ${d.comment_7}, ${d.note_8}, ${d.comment_8}, ${d.note_9}, ${d.comment_9},
+                ${d.note_10}, ${d.comment_10}, ${d.note_11}, ${d.comment_11}, ${d.note_12}, ${d.comment_12},
+                ${d.note_13}, ${d.comment_13}, ${d.note_14}, ${d.comment_14}, ${d.note_15}, ${d.comment_15},
+                ${d.note_16}, ${d.comment_16}, ${d.note_17}, ${d.comment_17}, ${d.note_18}, ${d.comment_18},
+                ${d.note_19}, ${d.comment_19},
+                ${d.gen_nom_prenom}, ${d.gen_sexe}, ${d.gen_age}, ${d.gen_telephone}, ${d.gen_adresse},
+                ${d.gen_ville}, ${d.gen_nom_entreprise}, ${d.gen_type_entreprise}, ${d.gen_email},
+                ${d.gen_activite_principale}, ${d.gen_activite_autre}, ${d.gen_ventes_mensuelles},
+                ${d.gen_role_entreprise}, ${d.gen_situation_entreprise}, ${d.gen_formation_interesse}
             )
             ON DUPLICATE KEY UPDATE
-                note_1 = VALUES(note_1),
-                comment_1 = VALUES(comment_1),
-                note_2 = VALUES(note_2),
-                comment_2 = VALUES(comment_2),
-                note_3 = VALUES(note_3),
-                comment_3 = VALUES(comment_3),
-                note_4 = VALUES(note_4),
-                comment_4 = VALUES(comment_4),
-                note_5 = VALUES(note_5),
-                comment_5 = VALUES(comment_5),
-                note_6 = VALUES(note_6),
-                comment_6 = VALUES(comment_6),
-                note_7 = VALUES(note_7),
-                comment_7 = VALUES(comment_7),
-                note_8 = VALUES(note_8),
-                comment_8 = VALUES(comment_8),
-                note_9 = VALUES(note_9),
-                comment_9 = VALUES(comment_9),
-                note_10 = VALUES(note_10),
-                comment_10 = VALUES(comment_10),
-                note_11 = VALUES(note_11),
-                comment_11 = VALUES(comment_11),
-                note_12 = VALUES(note_12),
-                comment_12 = VALUES(comment_12),
-                note_13 = VALUES(note_13),
-                comment_13 = VALUES(comment_13),
-                note_14 = VALUES(note_14),
-                comment_14 = VALUES(comment_14),
-                note_15 = VALUES(note_15),
-                comment_15 = VALUES(comment_15),
-                note_16 = VALUES(note_16),
-                comment_16 = VALUES(comment_16),
-                note_17 = VALUES(note_17),
-                comment_17 = VALUES(comment_17),
-                note_18 = VALUES(note_18),
-                comment_18 = VALUES(comment_18),
-                note_19 = VALUES(note_19),
-                comment_19 = VALUES(comment_19);
-
+                note_1 = VALUES(note_1), comment_1 = VALUES(comment_1),
+                note_2 = VALUES(note_2), comment_2 = VALUES(comment_2),
+                note_3 = VALUES(note_3), comment_3 = VALUES(comment_3),
+                note_4 = VALUES(note_4), comment_4 = VALUES(comment_4),
+                note_5 = VALUES(note_5), comment_5 = VALUES(comment_5),
+                note_6 = VALUES(note_6), comment_6 = VALUES(comment_6),
+                note_7 = VALUES(note_7), comment_7 = VALUES(comment_7),
+                note_8 = VALUES(note_8), comment_8 = VALUES(comment_8),
+                note_9 = VALUES(note_9), comment_9 = VALUES(comment_9),
+                note_10 = VALUES(note_10), comment_10 = VALUES(comment_10),
+                note_11 = VALUES(note_11), comment_11 = VALUES(comment_11),
+                note_12 = VALUES(note_12), comment_12 = VALUES(comment_12),
+                note_13 = VALUES(note_13), comment_13 = VALUES(comment_13),
+                note_14 = VALUES(note_14), comment_14 = VALUES(comment_14),
+                note_15 = VALUES(note_15), comment_15 = VALUES(comment_15),
+                note_16 = VALUES(note_16), comment_16 = VALUES(comment_16),
+                note_17 = VALUES(note_17), comment_17 = VALUES(comment_17),
+                note_18 = VALUES(note_18), comment_18 = VALUES(comment_18),
+                note_19 = VALUES(note_19), comment_19 = VALUES(comment_19),
+                gen_nom_prenom          = VALUES(gen_nom_prenom),
+                gen_sexe                = VALUES(gen_sexe),
+                gen_age                 = VALUES(gen_age),
+                gen_telephone           = VALUES(gen_telephone),
+                gen_adresse             = VALUES(gen_adresse),
+                gen_ville               = VALUES(gen_ville),
+                gen_nom_entreprise      = VALUES(gen_nom_entreprise),
+                gen_type_entreprise     = VALUES(gen_type_entreprise),
+                gen_email               = VALUES(gen_email),
+                gen_activite_principale = VALUES(gen_activite_principale),
+                gen_activite_autre      = VALUES(gen_activite_autre),
+                gen_ventes_mensuelles   = VALUES(gen_ventes_mensuelles),
+                gen_role_entreprise     = VALUES(gen_role_entreprise),
+                gen_situation_entreprise = VALUES(gen_situation_entreprise),
+                gen_formation_interesse = VALUES(gen_formation_interesse)
         `,
         function (err, result, fields) {
             if (err) {

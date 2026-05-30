@@ -1,80 +1,77 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+# CLAUDE.md — BackUndp
 
 ## Rôle de l'application
 
-**BackUndp** est une API REST pour la gestion de programmes de consultance d'entreprises dans le cadre de l'UNDP (Programme des Nations Unies pour le Développement). Elle permet à des **consultants** d'accompagner des **entreprises** à travers des outils de diagnostic, de planification stratégique et de suivi d'activités. Les **managers** supervisent l'ensemble des livrables produits par les consultants.
-
-Le frontend consommateur est une application Angular sur `http://localhost:4200`.
+**BackUndp** est l'API REST du programme UNDP de consultance d'entreprises. Elle expose les données consommées par le frontend Angular (`undptools`, port 4200). Trois profils : **consultant** (saisit les diagnostics), **manager/admin** (supervise les livrables), **user** (rôle de base).
 
 ---
 
-## Commands
+## Commandes
 
 ```bash
-# Démarrer le serveur
-node server.js
-
-# Installer les dépendances
-npm install
+node server.js        # Démarre le serveur sur le port 8080 (ou process.env.PORT)
+npm install           # Installe les dépendances
 ```
 
-Le serveur démarre sur le port `8080` (ou `process.env.PORT`). Il n'y a pas de script `dev` avec hot-reload — relancer manuellement après chaque modification.
+Pas de hot-reload — relancer manuellement après chaque modification.
 
 ---
 
-## Architecture globale
+## Architecture des fichiers
 
 ```
-server.js           → Crée le serveur HTTP, écoute sur le port 8080
-app.js              → Configure Express : CORS, cookie-session, montage des routes, sync Sequelize
-app/
-  config/
-    auth.config.js  → Secret JWT
-    db.config.js    → Config Sequelize (host, user, password, DB, pool)
-    dbcon.js        → Connexion MySQL directe (partagée par les routes métier)
-  models/           → Sequelize : User, Role, associations Many-to-Many via user_roles
-  middleware/
-    authJwt.js      → verifyToken, isAdmin, isModerator, isModeratorOrAdmin
-    verifySignUp.js → checkDuplicateUsernameOrEmail, checkRolesExisted
-    index.js        → Export groupé des middlewares
-  controllers/
-    auth.controller.js  → signup, signin, signout
-    user.controller.js  → handlers des routes de test par rôle
-  routes/
-    auth.routes.js        → /api/auth/*
-    user.routes.js        → /api/test/*
-    consultant.routes.js  → /api/consultant/*
-    manager.routes.js     → /api/manager/*
-    tools.routes.js       → /api/tools/*
+server.js                    → Crée le serveur HTTP
+app.js                       → Express : CORS (origin: localhost:4200), cookie-session,
+                               montage des routes, db.sequelize.sync()
+app/config/
+  auth.config.js             → Secret JWT
+  db.config.js               → Config Sequelize (pool max 5, acquire 30s, idle 10s)
+  dbcon.js                   → Connexion MySQL brute persistante (toutes les routes métier)
+app/models/
+  user.model.js              → Sequelize User (id, username, email, password, tel)
+  role.model.js              → Sequelize Role (id, name)
+  index.js                   → Many-to-Many user ↔ role via table user_roles
+app/middleware/
+  authJwt.js                 → verifyToken, isAdmin, isModerator, isModeratorOrAdmin
+  verifySignUp.js            → checkDuplicateUsernameOrEmail, checkRolesExisted
+  index.js                   → Export groupé
+app/controllers/
+  auth.controller.js         → signup, signin, signout
+  user.controller.js         → handlers des routes de test par rôle
+app/routes/
+  auth.routes.js             → /api/auth/*      — style: reçoit app directement
+  user.routes.js             → /api/test/*      — style: reçoit app directement
+  consultant.routes.js       → /api/consultant/* — express.Router()
+  manager.routes.js          → /api/manager/*   — express.Router()
+  tools.routes.js            → /api/tools/*     — express.Router()
 ```
 
 ---
 
-## Deux couches d'accès à la base de données
+## Deux couches d'accès à la base de données — NE PAS CONFONDRE
 
-Ce projet mélange deux approches, chacune avec un périmètre distinct :
+| Couche | Fichier | Tables concernées |
+|---|---|---|
+| **Sequelize ORM** | `app/models/` | `users`, `roles`, `user_roles` uniquement |
+| **MySQL brut** | `app/config/dbcon.js` | Toutes les tables métier |
 
-1. **Sequelize ORM** (`app/models/`) — utilisé exclusivement pour la gestion des utilisateurs et rôles (`users`, `roles`, `user_roles`). La synchronisation se fait au démarrage via `db.sequelize.sync()` dans `app.js`.
+Les requêtes MySQL brutes utilisent `sql-template-strings` (tagged template literals SQL\`...\`).
 
-2. **MySQL brut** (`app/config/dbcon.js`) — connexion MySQL persistante partagée dans tous les fichiers de routes métier via `require('./../config/dbcon')`. Utilisée pour toutes les tables métier : `entreprises`, `mat_predia_crev_note`, `matrice_diag_integral_note`, `activity_tab`, `bmc_data`. Les requêtes utilisent la lib `sql-template-strings` (tagged template literals).
-
-Ne pas confondre les deux : les routes `auth` et `user` passent par Sequelize, toutes les autres routes (`consultant`, `manager`, `tools`) passent par `dbcon`.
+> La route `GET /api/manager/user` requête directement `users`/`roles`/`user_roles` via `dbcon` (MySQL brut), même si ces tables sont gérées par Sequelize par ailleurs.
 
 ---
 
 ## Endpoints de l'API
 
-### `/api/auth` — Authentification
+### `/api/auth` — Authentification (via Sequelize)
 
 | Méthode | Route | Middleware | Description |
 |---|---|---|---|
-| POST | `/signup` | checkDuplicateUsernameOrEmail, checkRolesExisted | Inscription, hash bcrypt (8 rounds), association rôles |
-| POST | `/signin` | — | Login → retourne `{id, username, email, roles[], accessToken}` |
+| POST | `/signup` | checkDuplicateUsernameOrEmail, checkRolesExisted | Inscription, bcrypt 8 rounds |
+| POST | `/signin` | — | Retourne `{id, username, email, roles[], accessToken}` |
 | POST | `/signout` | — | Efface la session cookie |
 
-Le token JWT (HS256, 24h) est retourné dans `accessToken`. Les rôles sont retournés sous la forme `["ROLE_USER"]`, `["ROLE_ADMIN"]`, etc.
+Token JWT HS256, durée 24h, retourné dans `accessToken`. Rôles au format `["ROLE_USER"]`.
 
 ### `/api/test` — Vérification des accès par rôle
 
@@ -85,42 +82,72 @@ Le token JWT (HS256, 24h) est retourné dans `accessToken`. Les rôles sont reto
 | GET | `/mod` | `verifyToken` + `isModerator` |
 | GET | `/admin` | `verifyToken` + `isAdmin` |
 
-### `/api/consultant` — Gestion des entreprises (côté consultant)
+### `/api/consultant` — Gestion des entreprises
 
 | Méthode | Route | Description |
 |---|---|---|
-| GET | `/companies` | Toutes les entreprises |
-| GET | `/companiesUser?idUser=` | Entreprises du consultant connecté |
-| POST | `/newCompany` | Créer une nouvelle entreprise |
+| GET | `/companies` | Toutes les entreprises (`SELECT * FROM entreprises`) |
+| GET | `/companiesUser?idUser=` | Entreprises filtrées par `id_consl` |
+| POST | `/newCompany` | Insère dans `entreprises` (name, region, ville, date_creation, nbr_employer, nbr_femme, produits, services, description, quartier, lieu, gerant, descrt_gerant, id_consl, x, y) |
 
-### `/api/manager` — Vue manager
+### `/api/manager` — Vue superviseur
 
 | Méthode | Route | Description |
 |---|---|---|
-| GET | `/user` | Liste des utilisateurs avec leurs rôles (JOIN `roles` + `user_roles` + `users`) |
-| GET | `/livrables?idUser=` | Tous les diagnostics (prediag + intégral) d'un consultant avec infos entreprise |
-| POST | `/newCompany` | Créer une nouvelle entreprise |
+| GET | `/user` | JOIN `roles` + `user_roles` + `users` → retourne (id, name, username, email, tel) |
+| GET | `/livrables?idUser=` | UNION des diagnostics intégraux et pré-diagnostics d'un consultant, jointés aux entreprises |
+| POST | `/newCompany` | Identique à `/api/consultant/newCompany` |
 
 ### `/api/tools` — Outils métier
 
 | Méthode | Route | Description |
 |---|---|---|
-| POST/GET | `/attribut` | Prediagnostic : 19 scores + commentaires par couple `(cons_id, comp_id)` |
-| GET | `/matPrediaLabel` | Labels de référence du prediagnostic |
-| POST/GET | `/integral` | Diagnostic intégral : 62 scores + SWOT `(difficultés, forces, faiblesses, besoins)` |
-| GET | `/matIntegLabel` | Labels de référence du diagnostic intégral |
-| POST/GET | `/activities` | Activités : planning, dépendances, responsable, suivi progression |
-| POST/GET | `/bmc` | Business Model Canvas : 9 sections × 3 champs |
+| POST | `/attribut` | Upsert pré-diagnostic (19 notes + 19 commentaires + cons_id + comp_id) |
+| GET | `/attribut?idUser=&idComp=` | Lecture pré-diagnostic par (cons_id, comp_id) |
+| POST | `/integral` | Upsert diagnostic intégral (62 notes + 62 commentaires `comt_N` + SWOT 4×3 + cons_id + comp_id) |
+| GET | `/integral?idUser=&idComp=` | Lecture diagnostic intégral |
+| GET | `/matPrediaLabel` | `SELECT * FROM matrice_prediagnostic` (labels lecture seule) |
+| GET | `/matIntegLabel` | `SELECT * FROM matrice_diag_integral` (labels lecture seule) |
+| POST | `/activities` | INSERT dans `activity_tab` (pas d'upsert — insert pur) |
+| GET | `/activities?idUser=&idComp=` | Activités filtrées par (cons_id, comp_id) |
+| POST | `/bmc` | INSERT dans `bmc_data` (pas d'upsert) |
+| GET | `/bmc?idUser=&idComp=` | BMC filtré par (cons_id, comp_id) |
 
-Les POST de `/attribut` et `/integral` utilisent `INSERT ... ON DUPLICATE KEY UPDATE` — ils font office d'upsert sur la clé composite `(cons_id, comp_id)`.
+**Route manquante :** Le frontend appelle `PUT /api/tools/activities/:id` pour mettre à jour une activité Gantt, mais cette route **n'est pas implémentée** dans `tools.routes.js`. C'est un gap à combler.
+
+**Règle upsert :** `/attribut` et `/integral` utilisent `INSERT ... ON DUPLICATE KEY UPDATE` sur la clé composite `(cons_id, comp_id)`. `/activities` et `/bmc` font des INSERT simples.
+
+**Nommage colonne — attention :** Dans `matrice_diag_integral_note`, les colonnes de commentaires s'appellent `comt_N` (underscore simple). Le service Angular utilise `comt__N` (double underscore) dans l'interface TypeScript mais envoie `comt_N` dans le corps HTTP — vérifier la cohérence lors de tout ajout de champ.
 
 ---
 
-## Modèles Sequelize
+## Base de données : `undptools` (MySQL)
 
-**User** (`users`) : `id`, `username`, `email`, `password`
-**Role** (`roles`) : `id`, `name`
-Relation Many-to-Many via table `user_roles` définie dans `app/models/index.js`.
+### Tables Sequelize (gérées par ORM)
+
+| Table | Colonnes clés |
+|---|---|
+| `users` | id, username, email, password, tel |
+| `roles` | id, name (`user`=1, `moderator`=2, `admin`=3) |
+| `user_roles` | userId, roleId (Many-to-Many) |
+
+Initialisation des rôles sur base vide : décommenter `db.sequelize.sync({force: true})` dans `app.js` pour déclencher `initial()`, puis remettre `sync()` sans `force`.
+
+### Tables métier (MySQL brut via dbcon)
+
+| Table | Clé composite | Description |
+|---|---|---|
+| `entreprises` | id, id_consl | Profil entreprise avec GPS (x, y), coordonnées, secteur |
+| `mat_predia_crev_note` | (cons_id, comp_id) | 19 scores + 19 commentaires pré-diagnostic |
+| `matrice_diag_integral_note` | (cons_id, comp_id) | 62 scores (`note_N`) + 62 commentaires (`comt_N`) + SWOT (difficult_1-3, force_1-3, faiblesse_1-3, besoin_1-3) |
+| `matrice_prediagnostic` | — | Labels/descriptions pré-diag (lecture seule, `children` est un JSON sérialisé) |
+| `matrice_diag_integral` | — | Labels/descriptions diagnostic intégral (lecture seule) |
+| `activity_tab` | cons_id, comp_id | Activités : name, details, start, end, close, progress, status, dependencies, responsable, comments |
+| `bmc_data` | cons_id, comp_id | BMC 12 sections × 3 champs (voir liste complète ci-dessous) |
+
+### Colonnes BMC (`bmc_data`) — 12 sections × 3 champs
+
+`customerSegments1-3`, `valuePropositions1-3`, `channels1-3`, `problemeIdentifie1-3`, `but1-3`, `mesureImpact1-3`, `customerRelationships1-3`, `revenueStreams1-3`, `keyResources1-3`, `keyActivities1-3`, `keyPartnerships1-3`, `costStructure1-3`
 
 ---
 
@@ -128,48 +155,44 @@ Relation Many-to-Many via table `user_roles` définie dans `app/models/index.js`
 
 ### `authJwt.js`
 
-- **`verifyToken`** : extrait le JWT depuis `x-access-token` ou `Authorization: Bearer <token>`, vérifie la signature, attache `req.userId`.
-- **`isAdmin`** / **`isModerator`** / **`isModeratorOrAdmin`** : chargent les rôles de l'utilisateur via Sequelize et bloquent avec 403 si le rôle requis est absent.
+- `verifyToken` : extrait le JWT depuis `x-access-token` ou `Authorization: Bearer`, attache `req.userId`.
+- `isAdmin` / `isModerator` / `isModeratorOrAdmin` : chargent les rôles via Sequelize, bloquent avec 403.
 
-> Les routes métier `/api/consultant`, `/api/manager` et `/api/tools` **n'appliquent pas `verifyToken`** — elles sont non protégées côté API.
+> **Important :** Les routes `/api/consultant`, `/api/manager` et `/api/tools` **n'appliquent pas `verifyToken`**. C'est un choix délibéré — ne pas changer sans validation explicite.
 
 ### `verifySignUp.js`
 
-- **`checkDuplicateUsernameOrEmail`** : requête Sequelize pour vérifier l'unicité avant création.
-- **`checkRolesExisted`** : valide que les rôles fournis font partie de `["user", "admin", "moderator"]`.
+- `checkDuplicateUsernameOrEmail` : vérifie l'unicité via Sequelize.
+- `checkRolesExisted` : valide que les rôles fournis sont parmi `["user", "admin", "moderator"]`.
 
 ---
 
-## Base de données
+## Montage des routes dans `app.js`
 
-- **Nom** : `undptools` — MySQL
-- **Credentials** : en dur dans `app/config/db.config.js` et `app/config/dbcon.js` (à externaliser en `.env`)
-- **Pool Sequelize** : max 5 connexions, acquire 30s, idle 10s
+Deux styles coexistent — ne pas les mélanger :
 
-### Tables métier
-
-| Table | Clé métier | Rôle |
+| Style | Routes | Syntaxe |
 |---|---|---|
-| `entreprises` | `id`, `id_consl` | Profils entreprises avec coordonnées GPS (`x`, `y`) |
-| `mat_predia_crev_note` | `(cons_id, comp_id)` | 19 scores + commentaires de prediagnostic |
-| `matrice_diag_integral_note` | `(cons_id, comp_id)` | 62 scores + SWOT (difficultés, forces, faiblesses, besoins) |
-| `matrice_prediagnostic` | — | Labels/descriptions du prediagnostic (lecture seule) |
-| `matrice_diag_integral` | — | Labels/descriptions du diagnostic intégral (lecture seule) |
-| `activity_tab` | `(cons_id, comp_id)` | Activités avec planning, dépendances, responsable, progress |
-| `bmc_data` | `(cons_id, comp_id)` | Business Model Canvas 9 sections × 3 champs |
-
-### Initialisation des rôles
-
-La table `roles` doit contenir les 3 entrées `{id:1, user}`, `{id:2, moderator}`, `{id:3, admin}`. Sur une base vide, décommenter `db.sequelize.sync({force: true})` dans `app.js` pour appeler `initial()` au démarrage, puis remettre `sync()` sans `force`.
+| Module function | `auth.routes`, `user.routes` | `require('...')(app)` |
+| express.Router | `consultant`, `manager`, `tools` | `app.use('/api/...', Router)` |
 
 ---
 
 ## CORS
 
-Configuré uniquement pour `http://localhost:4200`. Pour la production, modifier l'`origin` dans `app.js` — une URL `jalilfonda.com` est déjà présente en commentaire.
+Configuré pour `http://localhost:4200` uniquement. Pour la production, modifier `origin` dans `app.js` (une URL `jalilfonda.com` est en commentaire).
 
-### Enregistrement des routes dans `app.js`
+---
 
-Il y a deux styles de montage :
-- `auth.routes` et `user.routes` : `require('...')(app)` — reçoivent `app` directement (style module function).
-- `consultant`, `manager`, `tools` : `express.Router()` montés via `app.use('/api/...', Route)`.
+## Dépendances
+
+| Package | Usage |
+|---|---|
+| `express` ^4.18 | Framework HTTP |
+| `sequelize` | ORM pour users/roles |
+| `mysql` + `mysql2` | Drivers MySQL |
+| `sql-template-strings` | Tagged templates pour requêtes brutes |
+| `jsonwebtoken` ^9 | JWT HS256 |
+| `bcryptjs` ^2.4 | Hash passwords (8 rounds) |
+| `cookie-session` | Session cookie |
+| `cors` | CORS middleware |

@@ -5,14 +5,24 @@ const cors = require("cors");
 const app = express();
 
 
-// Configuration CORS simplifiée
-// app.use(cors());
+const allowedOrigins = [
+  'http://localhost:4200',
+  'https://sdp-gyb-cmr.com',
+  'https://www.sdp-gyb-cmr.com'
+];
+
 app.use(cors({
-  origin: 'http://localhost:4200',
-  // origin: 'https://jalilfonda.com',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept',
+                   'Origin', 'X-Requested-With']
 }));
 
 
@@ -27,8 +37,9 @@ app.use(
     name: "bezkoder-session",
     keys: ["COOKIE_SECRET"], // should use as secret environment variable
     httpOnly: true,
-    sameSite: 'none',   // <- important
-    secure: true,        // obligatoire si sameSite=none
+    sameSite: 'none',
+    secure: true,
+    domain: '.sdp-gyb-cmr.com', // partage le cookie entre sous-domaines
     maxAge: 24 * 60 * 60 * 1000 // 24 heures
   })
 );
@@ -53,16 +64,15 @@ app.get("/", (req, res) => {
 const ConsultantRoute = require('./app/routes/consultant.routes')
 const ManagerRoute = require('./app/routes/manager.routes')
 const ToolsRoute = require('./app/routes/tools.routes')
-
-
+const { verifyToken } = require('./app/middleware/authJwt');
 
 // routes
 require("./app/routes/auth.routes")(app);
 require("./app/routes/user.routes")(app);
 
-app.use('/api/consultant', ConsultantRoute);
-app.use('/api/manager', ManagerRoute);
-app.use('/api/tools', ToolsRoute);
+app.use('/api/consultant', [verifyToken], ConsultantRoute);
+app.use('/api/manager', [verifyToken], ManagerRoute);
+app.use('/api/tools', [verifyToken], ToolsRoute);
 
 
 function initial() {

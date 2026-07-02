@@ -15,7 +15,7 @@ router.use(function (req, res, next) {
 
 router.post("/attribut", (req, res) => {
     var d = req.body
-    console.log('begining Attribut tools insertion !');
+    // console.log('begining Attribut tools insertion !');
     con.query(SQL
         `
            INSERT INTO mat_predia_crev_note (
@@ -127,7 +127,7 @@ router.post("/activities", (req, res) =>{
 
 router.post("/bmc", (req, res) =>{
     var bmc = req.body
-    console.log(bmc)
+    // console.log(bmc)
     con.query(SQL 
         `
             INSERT INTO bmc_data (
@@ -175,7 +175,7 @@ router.post("/bmc", (req, res) =>{
 
 router.post("/integral", (req, res) => {
     var attribForm = req.body
-    console.log('begining Mat Integ tools  insertion !');
+    // console.log('begining Mat Integ tools  insertion !');
     con.query(SQL 
         `
            INSERT INTO matrice_diag_integral_note (
@@ -401,7 +401,7 @@ router.post("/integral", (req, res) => {
 router.get("/attribut", (req, res) => {
     var userId = req.query.idUser
     var compId = req.query.idComp
-    console.log(userId, compId)
+    // console.log(userId, compId)
     con.query(SQL
         `SELECT * FROM mat_predia_crev_note where (cons_id = ${userId} && comp_id = ${compId} )  ;`,
         function (err, result, fields) {
@@ -419,7 +419,7 @@ router.get("/attribut", (req, res) => {
 router.get("/activities", (req, res) => {
     var userId = req.query.idUser
     var compId = req.query.idComp
-    console.log('Visualisation '+userId, compId)
+    // console.log('Visualisation '+userId, compId)
     con.query(SQL
         `SELECT * FROM activity_tab where (cons_id = ${userId} && comp_id = ${compId} )  ;`,
         function (err, result, fields) {
@@ -437,7 +437,7 @@ router.get("/activities", (req, res) => {
 router.get("/integral", (req, res) => {
     var userId = req.query.idUser
     var compId = req.query.idComp
-    console.log(userId, compId)
+    // console.log(userId, compId)
     con.query(SQL
         `SELECT * FROM matrice_diag_integral_note where (cons_id = ${userId} && comp_id = ${compId} )  ;`,
         function (err, result, fields) {

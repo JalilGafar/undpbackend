@@ -12,7 +12,7 @@ verifyToken = (req, res, next) => {
   }
 
 
-  console.log('VerifyToke : ' + token)
+  // console.log('VerifyToke : ' + token)
 
   if (!token) {
     return res.status(403).send({

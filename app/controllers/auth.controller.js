@@ -9,7 +9,6 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
 exports.signup = async (req, res) => {
-  // Save User to Database
   try {
     const user = await User.create({
       username: req.body.username,
@@ -17,27 +16,21 @@ exports.signup = async (req, res) => {
       password: bcrypt.hashSync(req.body.password, 8),
     });
 
-    const result = user.setRoles(req.body.roles);
-    if (result) res.send({ message: "User registered successfully!" });
-
-
-
-    // if (req.body.roles) {
-    //   const roles = await Role.findAll({
-    //     where: {
-    //       name: {
-    //         [Op.or]: req.body.roles,
-    //       },
-    //     },
-    //   });
-
-    //   const result = user.setRoles(roles);
-    //   if (result) res.send({ message: "User registered successfully!" });
-    // } else {
-    //   // user has role = 1
-    //   const result = user.setRoles([1]);
-    //   if (result) res.send({ message: "User registered successfully!" });
-    // }
+    if (req.body.roles && Array.isArray(req.body.roles) && req.body.roles.length > 0) {
+      const roles = await Role.findAll({
+        where: {
+          name: {
+            [Op.or]: req.body.roles,
+          },
+        },
+      });
+      const result = user.setRoles(roles);
+      if (result) res.send({ message: "User registered successfully!" });
+    } else {
+      // Rôle par défaut : consultant (id=3)
+      const result = user.setRoles([3]);
+      if (result) res.send({ message: "User registered successfully!" });
+    }
   } catch (error) {
     res.status(500).send({ message: error.message });
   }
@@ -82,7 +75,7 @@ exports.signin = async (req, res) => {
 
     req.session.token = token;
 
-    console.log(req.session.token)
+    // console.log(req.session.token)
 
     return res.status(200).send({
       id: user.id,

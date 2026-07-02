@@ -25,7 +25,7 @@ router.use(function (req, res, next) {
 
 
 router.get("/user", (req, res) => {
-    console.log('testeur')
+    // console.log('testeur')
     con.query(SQL
         `	SELECT userId AS id, name, username, email, tel
                 FROM roles
@@ -48,7 +48,7 @@ router.get("/user", (req, res) => {
 /**Ajouter une nouvelle company */
 router.post("/newCompany", (req, res) => {
     var companyForm = req.body
-    console.log(companyForm);
+    // console.log(companyForm);
     con.query(SQL
                 `
                 INSERT INTO entreprises 
@@ -66,7 +66,7 @@ router.post("/newCompany", (req, res) => {
                         return;
                     };
                     res.sendStatus(200);
-                    console.log('record of Company done');
+                    // console.log('record of Company done');
                 }
             );
 });

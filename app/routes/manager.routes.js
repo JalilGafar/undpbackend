@@ -104,6 +104,38 @@ router.get("/livrables", (req, res) => {
 });
 
 
+// Get ALL livrables across every consultant, grouped by type, with consultant name
+router.get("/all-livrables", (req, res) => {
+    con.query(SQL
+                `
+                SELECT livrable, tableur, tool_code, id_livrable, comp_id,
+                       entreprises.name AS company, Livrable.cons_id, users.username AS consultant,
+                       Livrable.date, Livrable.updated_at
+                FROM entreprises
+                JOIN (
+                    (SELECT 'Diagnostic intégral' AS livrable, 'matrice_diag_integral_note' AS tableur,
+                            't1d' AS tool_code, id_diag_integ_note AS id_livrable, comp_id, cons_id, date, updated_at
+                     FROM matrice_diag_integral_note)
+                    UNION
+                    (SELECT 'Prédiagnostic', 'mat_predia_crev_note', 'attribut', attr_id, comp_id, cons_id, date, updated_at
+                     FROM mat_predia_crev_note)
+                ) Livrable ON (entreprises.id = Livrable.comp_id)
+                JOIN users ON (users.id = Livrable.cons_id)
+                ORDER BY Livrable.updated_at DESC;
+                `,
+                function (err, result, fields) {
+                    if (err) {
+                        console.log(err);
+                        res.sendStatus(500);
+                        return;
+                    };
+                    res.status(200).json(result);
+                    return;
+                }
+            );
+});
+
+
 // ── Détail entreprise ──────────────────────────────────────────────────────────
 
 router.get("/company/:id", (req, res) => {

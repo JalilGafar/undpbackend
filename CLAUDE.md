@@ -150,6 +150,7 @@ cookieSession({
 |---|---|---|---|
 | GET | `/api/manager/user` | — | JOIN `roles` + `user_roles` + `users` → retourne (id, name, username, email, tel) |
 | GET | `/api/manager/livrables` | `?idUser=` | UNION diagnostics intégraux + pré-diagnostics d'un consultant, jointés aux entreprises → (livrable, tableur, tool_code, id_livrable, comp_id, company, date) |
+| GET | `/api/manager/all-livrables` | — | UNION diagnostics intégraux + pré-diagnostics de TOUS les consultants (pas de filtre idUser), jointés aux entreprises et à users (nom du consultant) → (livrable, tableur, tool_code, id_livrable, comp_id, company, cons_id, consultant, date, updated_at) |
 | POST | `/api/manager/newCompany` | body | Identique à `/api/consultant/newCompany` |
 | GET | `/api/manager/company/:id` | `:id` URL | Détail entreprise par ID |
 | PUT | `/api/manager/company/:id` | `:id` URL + body | Met à jour les champs entreprise |
@@ -218,6 +219,8 @@ POOL: max 5, min 0, acquire 30000ms, idle 10000ms
 | `matrice_diag_integral` | — | Labels/descriptions diagnostic intégral (lecture seule) |
 | `activity_tab` | cons_id, comp_id | Gantt : name, details, start (`YYYY-MM-DD`), end (`YYYY-MM-DD`), close, progress, status, dependencies, responsable, comments |
 | `bmc_data` | cons_id, comp_id | BMC 12 sections × 3 champs (voir ci-dessous) |
+
+> **⚠️ Colonne `updated_at` ajoutée manuellement :** `matrice_diag_integral_note` et `mat_predia_crev_note` ont reçu une colonne `updated_at` (`TIMESTAMP ... ON UPDATE CURRENT_TIMESTAMP`) ajoutée manuellement (hors migration Sequelize) pour la feature `GET /api/manager/all-livrables`. Cette colonne doit exister dans tout environnement (y compris production) avant d'utiliser cet endpoint, sinon la requête échoue en 500.
 
 ### Colonnes BMC (`bmc_data`) — 12 sections × 3 champs
 

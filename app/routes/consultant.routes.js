@@ -4,6 +4,10 @@ const router = express.Router();
 const controller = require("../controllers/user.controller");
 var con = require('./../config/dbcon');
 var SQL = require('sql-template-strings');
+const { imageUpload, uploadRef, removeUpload, companyPublicDir } = require('../middleware/upload');
+
+// Logo : uploads/companies/<id>/logo-<horodatage>.webp (800 px max, 10 Mo acceptés en entrée)
+const logoUpload = imageUpload('logo', () => 'logo', req => companyPublicDir(req.params.id), { width: 800, height: 800, fit: 'inside' });
 
 
 // module.exports = function (app) {
@@ -86,6 +90,7 @@ router.put("/company/:id", [authJwt.verifyToken], (req, res) => {
             date_creation = ${c.date_creation},
             nbr_employer  = ${c.nbr_employer},
             nbr_femme     = ${c.nbr_femme},
+            secteur       = ${c.secteur},
             produits      = ${c.produits},
             services      = ${c.services},
             description   = ${c.description},
@@ -106,18 +111,43 @@ router.put("/company/:id", [authJwt.verifyToken], (req, res) => {
     });
 });
 
+// ── Logo entreprise (consultant — limité à ses propres entreprises) ──────────
+// Le fichier est stocké dans /uploads, la colonne entreprises.logo reçoit "uploads/<fichier>"
+
+router.post("/company/:id/logo", [authJwt.verifyToken, logoUpload], (req, res) => {
+    const id = req.params.id;
+    const logo = uploadRef(req.file);
+    con.query(SQL`SELECT logo FROM entreprises WHERE id = ${id} AND id_consl = ${req.userId}`, function (err, rows) {
+        if (err || rows.length === 0) {
+            removeUpload(logo);
+            if (err) { console.log(err); res.sendStatus(500); return; }
+            res.status(403).json({ message: "Action non autorisée ou entreprise introuvable." });
+            return;
+        }
+        const previous = rows[0].logo;
+        con.query(SQL`UPDATE entreprises SET logo = ${logo} WHERE id = ${id} AND id_consl = ${req.userId}`, function (err2) {
+            if (err2) {
+                removeUpload(logo);
+                console.log(err2); res.sendStatus(500); return;
+            }
+            removeUpload(previous);
+            res.status(200).json({ logo });
+        });
+    });
+});
+
 /**Ajouter une nouvelle company */
 router.post("/newCompany", (req, res) => {
     var companyForm = req.body
     // console.log('begining company insertion !');
     con.query(SQL
                 `
-                INSERT INTO entreprises 
-                (name, region, ville, date_creation, nbr_employer, nbr_femme, produits, services, description, 
-                quartier, lieu, gerant, descrt_gerant, id_consl, x, y) 
-                VALUES 
-                (${companyForm.name}, ${companyForm.region}, ${companyForm.ville}, ${companyForm.date_creation}, ${companyForm.nbr_employer}, 
-                ${companyForm.nbr_femme}, ${companyForm.produits}, ${companyForm.services}, ${companyForm.description}, ${companyForm.quartier}, 
+                INSERT INTO entreprises
+                (name, region, ville, date_creation, nbr_employer, nbr_femme, secteur, produits, services, description,
+                quartier, lieu, gerant, descrt_gerant, id_consl, x, y)
+                VALUES
+                (${companyForm.name}, ${companyForm.region}, ${companyForm.ville}, ${companyForm.date_creation}, ${companyForm.nbr_employer},
+                ${companyForm.nbr_femme}, ${companyForm.secteur}, ${companyForm.produits}, ${companyForm.services}, ${companyForm.description}, ${companyForm.quartier},
                 ${companyForm.lieu}, ${companyForm.gerant}, ${companyForm.descrt_gerant}, ${companyForm.idUser}, ${companyForm.x}, ${companyForm.y});
                 `,
                 function (err, result, fields) {

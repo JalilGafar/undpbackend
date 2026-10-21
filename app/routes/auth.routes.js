@@ -1,4 +1,5 @@
-const { verifySignUp } = require("../middleware");
+const { verifySignUp, authJwt } = require("../middleware");
+const { imageUpload } = require("../middleware/upload");
 const controller = require("../controllers/auth.controller");
 
 module.exports = function(app) {
@@ -22,4 +23,10 @@ module.exports = function(app) {
   app.post("/api/auth/signin", controller.signin);
 
   app.post("/api/auth/signout", controller.signout);
+
+  app.post(
+    "/api/auth/photo",
+    [authJwt.verifyToken, imageUpload("photo", req => "u" + req.userId, undefined, { width: 512, height: 512, fit: "cover" })],
+    controller.updatePhoto
+  );
 };

@@ -7,6 +7,7 @@ const Op = db.Sequelize.Op;
 
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const { removeUpload } = require("../middleware/upload");
 
 exports.signup = async (req, res) => {
   try {
@@ -81,6 +82,7 @@ exports.signin = async (req, res) => {
       id: user.id,
       username: user.username,
       email: user.email,
+      photo: user.photo,
       roles: authorities,
       accessToken: token
     });
@@ -97,5 +99,23 @@ exports.signout = async (req, res) => {
     });
   } catch (err) {
     this.next(err);
+  }
+};
+
+exports.updatePhoto = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.userId);
+    if (!user) {
+      removeUpload('uploads/' + req.file.filename);
+      return res.status(404).send({ message: "User Not found." });
+    }
+    const previous = user.photo;
+    user.photo = 'uploads/' + req.file.filename;
+    await user.save();
+    removeUpload(previous);
+    return res.status(200).send({ photo: user.photo });
+  } catch (error) {
+    removeUpload('uploads/' + req.file.filename);
+    return res.status(500).send({ message: error.message });
   }
 };

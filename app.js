@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const cookieSession = require("cookie-session");
 const cors = require("cors");
 
@@ -26,6 +27,7 @@ app.use(cors({
 }));
 
 
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -48,7 +50,8 @@ app.use(
 const db = require("./app/models");
 const Role = db.role;
 
-db.sequelize.sync();
+// Sans catch, un échec de connexion à la base ferait planter tout le processus (rejet non géré)
+db.sequelize.sync().catch(err => console.log('Sequelize sync failed :', err.message));
 // force: true will drop the table if it already exists
 // db.sequelize.sync({force: true}).then(() => {
 //   console.log('Drop and Resync Database with { force: true }');
@@ -64,6 +67,9 @@ app.get("/", (req, res) => {
 const ConsultantRoute = require('./app/routes/consultant.routes')
 const ManagerRoute = require('./app/routes/manager.routes')
 const ToolsRoute = require('./app/routes/tools.routes')
+const GalleryRoute = require('./app/routes/gallery.routes')
+const ProfilRoute = require('./app/routes/profil.routes')
+const CartographieRoute = require('./app/routes/cartographie.routes')
 const { verifyToken } = require('./app/middleware/authJwt');
 
 // routes
@@ -73,6 +79,9 @@ require("./app/routes/user.routes")(app);
 app.use('/api/consultant', [verifyToken], ConsultantRoute);
 app.use('/api/manager', [verifyToken], ManagerRoute);
 app.use('/api/tools', [verifyToken], ToolsRoute);
+app.use('/api/gallery', [verifyToken], GalleryRoute);
+app.use('/api/profil', [verifyToken], ProfilRoute);
+app.use('/api/cartographie', [verifyToken], CartographieRoute);
 
 
 function initial() {

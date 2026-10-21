@@ -174,6 +174,8 @@ cookieSession({
 | POST | `/api/tools/bmc` | body | **INSERT pur** (pas d'upsert) dans `bmc_data` |
 | GET | `/api/tools/bmc` | `?idUser=&idComp=` | BMC filtré par (cons_id, comp_id) |
 
+**Règle d'écriture :** tous les `POST /api/tools/*` exigent `cons_id` du corps = identité du jeton (403 sinon) ; les managers consultent via les GET.
+
 **Règles upsert :**
 - `/attribut` et `/integral` → `INSERT ... ON DUPLICATE KEY UPDATE` sur clé composite (cons_id, comp_id). Un seul enregistrement par (consultant, entreprise).
 - `/activities` et `/bmc` → `INSERT` simple. Plusieurs enregistrements possibles par (cons_id, comp_id).
@@ -335,3 +337,61 @@ router.put('/activities/:id', (req, res) => {
 | `cors` | ^2.8.5 | CORS middleware |
 | `express-session` | ^1.18.2 | Session middleware |
 | `cookie-session` | ^2.0.0 | Session cookie (utilisé en prod) |
+
+---
+
+## Images : logos, photos de profil, galerie d'entreprise
+
+Deux racines de stockage, **hors de git** (`.gitignore`) et **à conserver entre deux déploiements** :
+
+| Racine | Servie ? | Contenu |
+|---|---|---|
+| `uploads/` | Oui, en statique sur `/uploads` (publique) | Logos `uploads/companies/<id>/logo-<ts>.webp` ; photos de profil `uploads/u<userId>-<ts>.webp` |
+| `private/` | **Jamais** en statique | Galerie `private/companies/<id>/gallery/<aléa>.jpg` + `<aléa>_thumb.jpg` |
+
+La base stocke la référence `uploads/...` dans `entreprises.logo` et `users.photo`. Helpers dans `app/middleware/upload.js` (`imageUpload`, `uploadRef`, `removeUpload`, `removeCompanyFiles`). La suppression d'une entreprise (`DELETE /api/manager/company/:id`) supprime ses fichiers et ses lignes `entreprise_images`.
+
+| Méthode | Route | Description |
+|---|---|---|
+| POST | `/api/consultant/company/:id/logo` | Champ `logo`, JPG/PNG/WEBP jusqu'à 10 Mo en entrée, converti en WebP 800 px max (transparence conservée). Réservé au consultant propriétaire (`id_consl`) |
+| POST | `/api/auth/photo` | Champ `photo`, jusqu'à 10 Mo en entrée, recadrée en carré WebP 512 px. Photo de l'utilisateur connecté (`users.photo`, renvoyé par `signin` et `GET /api/manager/user`) |
+| GET | `/api/gallery/company/:compId` | `{ images[], canWrite, canDelete }` — propriétaire, admin, moderator |
+| POST | `/api/gallery/company/:compId` | Champs `images` (≤ 8, 10 Mo chacune), `category`, `stage`, `legend`. Propriétaire uniquement. `sharp` : rotation EXIF, JPEG 1600 px + miniature 400 px |
+| GET | `/api/gallery/image/:id?size=thumb\|full` | Flux de l'image, jeton obligatoire (le frontend la lit en blob) |
+| DELETE | `/api/gallery/image/:id` | Propriétaire ou admin |
+
+Catégories : `entreprise`, `personnel`, `produits`, `locaux`, `autre`. Étapes : `initiale`, `finale`. Limite 400 images par entreprise.
+
+**Migrations SQL à exécuter AVANT de déployer** (dossier `migrations/`) : `2026-10-add-users-photo.sql` (le modèle Sequelize `User` lit `photo`, sans la colonne la connexion échoue) et `2026-10-entreprise-images.sql`.
+
+---
+
+## Outil 1L « Profil du participant » (`/api/profil`)
+
+Routes dans `app/routes/profil.routes.js` (montées avec `verifyToken` dans `app.js`). Tables `entreprise_profil` (une ligne par (cons_id, comp_id)) et `entreprise_profil_ventes` (lignes produit / volume) — migration `migrations/2026-10-entreprise-profil.sql`.
+
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/api/profil?idUser=&idComp=` | `{ profil, ventes, company, consultant, fx }`. Le consultant concerné ou un admin/moderator (403 sinon) |
+| POST | `/api/profil` | Upsert (profil + remplacement des lignes de ventes, en transaction). Uniquement le consultant propriétaire de l'entreprise (`id_consl`) ; validation stricte côté serveur (400 avec `errors[]`) |
+
+- **Les montants sont saisis et stockés en FCFA.** L'affichage en USD est une option réservée aux managers : taux fixe dans `app/config/fx.config.js` (`xafPerUsd`, **valeur provisoire à confirmer**), renvoyé dans `fx`.
+- Les tables `entreprise_profil` sont aussi dans les UNION des listes de livrables (`tool_code` `t1l`, libellé « Profil d'informations »).
+- `app/middleware/access.js` : `roleNames`, `isManager` (admin ou moderator).
+
+---
+
+## Outil 1G « Cartographie des clients B2B » (`/api/cartographie`)
+
+Routes dans `app/routes/cartographie.routes.js` (montées avec `verifyToken` dans `app.js`), mêmes règles que 1L : GET par le consultant concerné ou un admin/moderator, POST uniquement par le consultant propriétaire de l'entreprise. Tables `cartographie_clients` (UNIQUE (cons_id, comp_id)) et `cartographie_clients_lignes` — migration `migrations/2026-10-cartographie-clients.sql`. Les lignes sont remplacées à chaque enregistrement (transaction, 200 lignes max, lignes vides ignorées). Montants en FCFA ; pourcentages calculés côté frontend. `tool_code` `t1g` dans les listes de livrables.
+
+`app/config/dbhelpers.js` : `query`, `getConnection`, `toId`, `isEmpty` partagés par les routes 1L et 1G.
+
+---
+
+## Outil 1D — matrice du diagnostic intégral (échelle 1 à 5)
+
+- **60 questions** (`matrice_diag_integral.reper` 1 à 60) puis 4 rubriques SWOT (reper 61 à 64 : difficultés, forces, faiblesses, besoins). Domaines : 1–4 juridique et fiscale, 5–12 leadership, 13–20 organisation, 21–28 finance, 29–35 planification, 36–43 production, 44–50 assurance qualité, 51–60 commercialisation.
+- **5 réponses → notes** : Insuffisant 1, À améliorer 2, Suffisant 3, Bon 4, Excellent 5. `note_N` (colonnes `decimal`) stocke ces entiers ; **0 ou NULL = question sans réponse** (enregistrement partiel autorisé). Les colonnes `note_61/62` et `comt_61/62` ne sont plus utilisées.
+- `POST /api/tools/integral` refuse (400) toute note qui n'est pas un entier de 0 à 5 (`validateIntegralNotes`).
+- Migration **à usage unique** `migrations/2026-10-diagnostic-integral-v2.sql` : archive les anciennes données et libellés dans `matrice_diag_integral_note_archive` et `matrice_diag_integral_archive` (anciennes questions, échelle 0–10), puis recharge les libellés.

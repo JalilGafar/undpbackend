@@ -12,6 +12,15 @@ router.use(function (req, res, next) {
     next();
 });
 
+// Seul le consultant concerné enregistre ses outils : le cons_id du corps doit être celui du jeton.
+// (Les managers consultent via les GET, jamais via les POST.)
+router.use(function (req, res, next) {
+    if (req.method === 'POST' && Number(req.body && req.body.cons_id) !== req.userId) {
+        return res.status(403).json({ message: "Seul le consultant concerné peut enregistrer cet outil." });
+    }
+    next();
+});
+
 
 router.post("/attribut", (req, res) => {
     var d = req.body
@@ -172,6 +181,22 @@ router.post("/bmc", (req, res) =>{
         }
      )
 } )
+
+// Diagnostic intégral : notes entières de 1 à 5 (0 ou vide = question sans réponse).
+// Refuse l'ancienne échelle 0–10, y compris si un ancien frontend resté en cache envoie encore ces notes.
+function validateIntegralNotes(req, res, next) {
+    const d = req.body || {};
+    for (let i = 1; i <= 62; i++) {
+        const v = d['note_' + i];
+        if (v === undefined || v === null || v === '') continue;
+        const n = Number(v);
+        if (!Number.isInteger(n) || n < 0 || n > 5) {
+            return res.status(400).json({ message: `Note invalide pour la question ${i} : un entier de 1 à 5 est attendu.` });
+        }
+    }
+    next();
+}
+router.post("/integral", validateIntegralNotes);
 
 router.post("/integral", (req, res) => {
     var attribForm = req.body

@@ -1,5 +1,5 @@
 const { verifySignUp, authJwt } = require("../middleware");
-const { imageUpload } = require("../middleware/upload");
+const { imageUpload, imageJsonUpload } = require("../middleware/upload");
 const controller = require("../controllers/auth.controller");
 
 module.exports = function(app) {
@@ -27,6 +27,13 @@ module.exports = function(app) {
   app.post(
     "/api/auth/photo",
     [authJwt.verifyToken, imageUpload("photo", req => "u" + req.userId, undefined, { width: 512, height: 512, fit: "cover" })],
+    controller.updatePhoto
+  );
+
+  // Même chose avec l'image en JSON (la couche d'entrée de l'hébergeur refuse le multipart)
+  app.post(
+    "/api/auth/photo-json",
+    [authJwt.verifyToken, imageJsonUpload(req => "u" + req.userId, undefined, { width: 512, height: 512, fit: "cover" })],
     controller.updatePhoto
   );
 };

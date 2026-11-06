@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 var con = require('./../config/dbcon');
 var SQL = require('sql-template-strings');
+const { query } = require('../config/dbhelpers');
+const { COMPANY_GUARD_SQL, vagueLock, sendLock } = require('../config/vagues');
 
 
 router.use(function (req, res, next) {
@@ -14,11 +16,20 @@ router.use(function (req, res, next) {
 
 // Seul le consultant concerné enregistre ses outils : le cons_id du corps doit être celui du jeton.
 // (Les managers consultent via les GET, jamais via les POST.)
-router.use(function (req, res, next) {
-    if (req.method === 'POST' && Number(req.body && req.body.cons_id) !== req.userId) {
+// Une vague clôturée verrouille aussi ces outils (le comp_id du corps désigne l'entreprise).
+router.use(async function (req, res, next) {
+    if (req.method !== 'POST') return next();
+    if (Number(req.body && req.body.cons_id) !== req.userId) {
         return res.status(403).json({ message: "Seul le consultant concerné peut enregistrer cet outil." });
     }
-    next();
+    try {
+        const [company] = await query(con, COMPANY_GUARD_SQL, [Number(req.body.comp_id)]);
+        const lock = vagueLock(company);
+        if (lock) return sendLock(res, lock);
+        next();
+    } catch (err) {
+        console.log(err); res.sendStatus(500);
+    }
 });
 
 
@@ -182,6 +193,33 @@ router.post("/bmc", (req, res) =>{
      )
 } )
 
+// Diagnostic intégral : « champ des recommandations » (page Résumé de l'outil original), stocké en JSON dans
+// matrice_diag_integral_note.recommandations : conclusions et lacunes, recommandations et problèmes identifiés, en nombre libre
+// (15 au plus chacun, un seul affiché au départ). Un problème porte 2 lignes (référence, indicateur, valeur initiale, prévision).
+// Tout est facultatif. Les éléments vides en fin de liste ne sont pas conservés (les anciens enregistrements en comptaient 4 / 4 / 3).
+// Renvoie le JSON normalisé, null si absent, false si le format est invalide.
+const RECO_MAX = 15;
+function cleanReco(raw) {
+    if (raw === undefined || raw === null) return null;
+    if (typeof raw !== 'object' || Array.isArray(raw)) return false;
+    const str = (v, max) => (typeof v === 'string' ? v : v === undefined || v === null ? '' : String(v)).slice(0, max);
+    const blank = v => typeof v === 'string' ? v.trim() === '' : Object.values(v).every(blank) || (Array.isArray(v) && v.every(blank));
+    const dropTail = list => { while (list.length && blank(list[list.length - 1])) list.pop(); return list; };
+    const items = v => (Array.isArray(v) ? v : []).slice(0, RECO_MAX);
+    const texts = v => dropTail(items(v).map(t => str(t, 1000)));
+    const problemes = dropTail(items(raw.problemes).map(p => {
+        p = p && typeof p === 'object' ? p : {};
+        return {
+            probleme: str(p.probleme, 1000),
+            lignes: Array.from({ length: 2 }, (_, j) => {
+                const l = (Array.isArray(p.lignes) && p.lignes[j]) || {};
+                return { reference: str(l.reference, 300), indicateur: str(l.indicateur, 300), valeur_initiale: str(l.valeur_initiale, 100), prevision: str(l.prevision, 100) };
+            })
+        };
+    }));
+    return JSON.stringify({ conclusions: texts(raw.conclusions), recommandations: texts(raw.recommandations), problemes });
+}
+
 // Diagnostic intégral : notes entières de 1 à 5 (0 ou vide = question sans réponse).
 // Refuse l'ancienne échelle 0–10, y compris si un ancien frontend resté en cache envoie encore ces notes.
 function validateIntegralNotes(req, res, next) {
@@ -194,6 +232,9 @@ function validateIntegralNotes(req, res, next) {
             return res.status(400).json({ message: `Note invalide pour la question ${i} : un entier de 1 à 5 est attendu.` });
         }
     }
+    // Recommandations : absentes (ancien frontend) = on garde celles déjà enregistrées
+    req.recoJson = cleanReco(d.recommandations);
+    if (req.recoJson === false) return res.status(400).json({ message: "Recommandations invalides." });
     next();
 }
 router.post("/integral", validateIntegralNotes);
@@ -270,7 +311,8 @@ router.post("/integral", (req, res) => {
                 difficult_1, difficult_2, difficult_3,
                 force_1, force_2, force_3,
                 faiblesse_1, faiblesse_2, faiblesse_3,
-                besoin_1, besoin_2, besoin_3
+                besoin_1, besoin_2, besoin_3,
+                recommandations
             )
             VALUES (
                 ${attribForm.cons_id}, ${attribForm.comp_id},
@@ -339,7 +381,8 @@ router.post("/integral", (req, res) => {
                 ${attribForm.difficult_1}, ${attribForm.difficult_2}, ${attribForm.difficult_3},
                 ${attribForm.force_1}, ${attribForm.force_2}, ${attribForm.force_3},
                 ${attribForm.faiblesse_1}, ${attribForm.faiblesse_2}, ${attribForm.faiblesse_3},
-                ${attribForm.besoin_1}, ${attribForm.besoin_2}, ${attribForm.besoin_3}
+                ${attribForm.besoin_1}, ${attribForm.besoin_2}, ${attribForm.besoin_3},
+                ${req.recoJson}
             )
             ON DUPLICATE KEY UPDATE
                 note_1 = VALUES(note_1), comt_1 = VALUES(comt_1),
@@ -407,7 +450,8 @@ router.post("/integral", (req, res) => {
                 difficult_1 = VALUES(difficult_1), difficult_2 = VALUES(difficult_2), difficult_3 = VALUES(difficult_3),
                 force_1 = VALUES(force_1), force_2 = VALUES(force_2), force_3 = VALUES(force_3),
                 faiblesse_1 = VALUES(faiblesse_1), faiblesse_2 = VALUES(faiblesse_2), faiblesse_3 = VALUES(faiblesse_3),
-                besoin_1 = VALUES(besoin_1), besoin_2 = VALUES(besoin_2), besoin_3 = VALUES(besoin_3)
+                besoin_1 = VALUES(besoin_1), besoin_2 = VALUES(besoin_2), besoin_3 = VALUES(besoin_3),
+                recommandations = COALESCE(VALUES(recommandations), recommandations)
                 ;
 
         `,
@@ -457,6 +501,24 @@ router.get("/activities", (req, res) => {
             return;
         }
     )
+});
+
+// Recommandations seules (onglet Résumé) : met à jour cette colonne sans toucher aux réponses du questionnaire.
+// Le middleware des POST a déjà vérifié le consultant (cons_id = jeton) et le verrou de vague.
+router.post("/integral/recommandations", async (req, res) => {
+    try {
+        const compId = Number(req.body.comp_id);
+        const [company] = await query(con, COMPANY_GUARD_SQL, [compId]);
+        if (!company) return res.sendStatus(404);
+        if (company.id_consl !== req.userId) return res.status(403).json({ message: "Cette entreprise ne vous est pas attribuée." });
+        const reco = cleanReco(req.body.recommandations);
+        if (!reco) return res.status(400).json({ message: "Recommandations invalides." });
+        const result = await query(con, 'UPDATE matrice_diag_integral_note SET recommandations = ? WHERE cons_id = ? AND comp_id = ?', [reco, req.userId, compId]);
+        if (!result.affectedRows) return res.status(409).json({ message: "Enregistrez d'abord le questionnaire du diagnostic : les recommandations s'y rattachent." });
+        res.status(200).json({ message: "Recommandations enregistrées." });
+    } catch (err) {
+        console.log(err); res.sendStatus(500);
+    }
 });
 
 router.get("/integral", (req, res) => {

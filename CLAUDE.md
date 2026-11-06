@@ -366,6 +366,10 @@ Catégories : `entreprise`, `personnel`, `produits`, `locaux`, `autre`. Étapes 
 
 ---
 
+## Envoi d'images : JSON et non multipart
+
+La couche d'entrée de l'hébergeur (LWS, `server: Portail`) refuse les POST `multipart/form-data` en 403. Les images sont donc réduites dans le navigateur puis envoyées en JSON : `{ image: "data:image/jpeg;base64,…" }` (+ `category`, `stage`, `legend` pour la galerie), une image par requête (limite JSON : 3 Mo, `app.js`). Routes : `POST /api/gallery/company/:id/json`, `POST /api/consultant/company/:id/logo-json`, `POST /api/auth/photo-json`. `app/middleware/upload.js` : `imageJsonUpload` (même traitement que `imageUpload`) et `decodeImageDataUrl`. Les routes multipart d'origine restent disponibles. Les envois de la galerie écrivent des traces `[gallery]` dans le journal Passenger.
+
 ## Outil 1L « Profil du participant » (`/api/profil`)
 
 Routes dans `app/routes/profil.routes.js` (montées avec `verifyToken` dans `app.js`). Tables `entreprise_profil` (une ligne par (cons_id, comp_id)) et `entreprise_profil_ventes` (lignes produit / volume) — migration `migrations/2026-10-entreprise-profil.sql`.
@@ -380,6 +384,26 @@ Routes dans `app/routes/profil.routes.js` (montées avec `verifyToken` dans `app
 - `app/middleware/access.js` : `roleNames`, `isManager` (admin ou moderator).
 
 ---
+
+## Outil 1J « Profil de productivité » (`/api/productivite`)
+
+Routes dans `app/routes/productivite.routes.js` (montées avec `verifyToken` dans `app.js`), mêmes règles que 1L : GET par le consultant concerné ou un admin/moderator, POST uniquement par le consultant propriétaire de l'entreprise. Tables `entreprise_productivite` (UNIQUE (cons_id, comp_id)) et `entreprise_productivite_produits` — migration `migrations/2026-10-productivite.sql`. Champs validés avec bornes (heures ≤ 24, jours/semaine ≤ 7, mois ≤ 12, pourcentages…). Montants en FCFA (USD à l'affichage pour les managers). `tool_code` `t1j` : listes de livrables, `livrables-summary`, tableau de bord d'entreprise et évaluations (`reviews.routes.js`).
+
+## Outil 1K « Diagnostic d'image commerciale » (`/api/image-commerciale`)
+
+Routes dans `app/routes/image-commerciale.routes.js` (montées avec `verifyToken` dans `app.js`), mêmes règles que 1L et 1J : GET par le consultant concerné ou un admin/moderator, POST uniquement par le consultant propriétaire de l'entreprise. Tables `entreprise_image_com` (UNIQUE (cons_id, comp_id), remarques générales) et `entreprise_image_com_elements` (11 éléments fixes numérotés de 1 à 11 : `existe` oui/non/partiellement, `situation` bonne/moyenne/mediocre, `besoin`, `observations`) — migration `migrations/2026-10-image-commerciale.sql`. Les éléments sont remplacés à chaque enregistrement ; seuls les éléments renseignés sont stockés. `tool_code` `t1k` (listes de livrables, `livrables-summary`, tableau de bord, évaluations).
+
+## Outil 1E_a « Diagnostic BPF » (`/api/bpf`)
+
+Routes dans `app/routes/bpf.routes.js` (montées avec `verifyToken` dans `app.js`), mêmes règles que 1K : GET par le consultant concerné ou un admin/moderator, POST uniquement par le consultant propriétaire de l'entreprise (vague clôturée : 423). **Un seul passage** par couple (consultant, entreprise). Tables `entreprise_bpf` (UNIQUE (cons_id, comp_id), date de visite, remarques générales), `entreprise_bpf_items` (92 exigences, identifiant interne 1-92 : `points` entier de 0 au maximum de l'exigence ou `na` = non applicable, jamais les deux ; `observations`), `entreprise_bpf_categories` (conclusions et recommandations des 9 catégories) et `entreprise_bpf_actions` (actions prioritaires, 10 au plus) — migration `migrations/2026-11-bpf-diagnostic.sql` (rejouable). Les maxima sont dans `BPF_MAX` (même liste que `core/model/bpf-content.ts` du site : à tenir identiques) ; **aucune colonne ENUM**, donc aucune liste de valeurs à synchroniser avec la base. Tout est remplacé à chaque enregistrement (transaction) ; seules les exigences renseignées sont stockées ; `updated_at` est daté même si rien ne change. Les scores ne sont pas stockés : le site les calcule. `tool_code` `t1ea` (listes de livrables, `livrables-summary`, tableau de bord, évaluations) ; `entreprise_bpf` fait partie de `TRANSFER_TABLES` (changement de consultant). ⚠ `manager.routes.js` et `consultant.routes.js` lisent `entreprise_bpf` : la migration doit être passée avant ces fichiers.
+
+## Outil 5S (`/api/cinq-s`)
+
+Routes dans `app/routes/cinq-s.routes.js` (montées avec `verifyToken` dans `app.js`), mêmes règles que 1L : GET par le consultant concerné ou un admin/moderator, écriture uniquement par le consultant propriétaire. Deux évaluations par couple (consultant, entreprise) : `phase` `initial` (étape 1, `tool_code` `t5s`) ou `final` (étape 4, `t5sf`), paramètre `phase` de toutes les routes (initial par défaut). Tables `entreprise_5s` (UNIQUE (cons_id, comp_id, phase), responsable, date, noms des photos), `entreprise_5s_notes` (5 S × 6 critères, note 1-5 + observations) et `entreprise_5s_actions` (plan d'action) — migration `migrations/2026-10-cinq-s.sql`. Notes et actions sont remplacées à chaque enregistrement (transaction). Les scores (moyenne par S, note globale) sont calculés côté frontend. Photos avant / après : plusieurs par évaluation, avec une légende (table `entreprise_5s_photos`, comme la galerie) : `GET /api/cinq-s/photos?idUser&idComp&phase&slot` (liste), `POST /api/cinq-s/photo` (une image en JSON), `GET /api/cinq-s/photo/:id?size=thumb|full` et `DELETE /api/cinq-s/photo/:id` ; fichiers JPEG + miniature protégés dans `private/companies/<id>/5s/`, lus avec le jeton. `tool_code` `t5s` et `t5sf` (listes de livrables, `livrables-summary`, tableau de bord, évaluations).
+
+## Outil « Analyse financière » (`/api/finance`, étape 1, `tool_code` `t3h`)
+
+Routes dans `app/routes/finance.routes.js` (montées avec `verifyToken` dans `app.js`), mêmes règles que 1L : GET par le consultant concerné ou un admin/moderator, POST uniquement par le consultant propriétaire. Une analyse par (consultant, entreprise) : `entreprise_finance` (année, taux d'imposition) et `entreprise_finance_lignes` (section, code du poste prédéfini ou libellé libre, 12 montants `m01`..`m12`) — migration `migrations/2026-10-finance.sql`. Montants entiers en FCFA ; les lignes sont remplacées à chaque enregistrement (transaction, lignes vides ignorées, 400 lignes max). Le compte de résultat est calculé côté frontend (`computeFinance` dans `core/model/finance.ts`). `tool_code` `t3h`.
 
 ## Outil 1G « Cartographie des clients B2B » (`/api/cartographie`)
 

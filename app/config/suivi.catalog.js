@@ -1,0 +1,256 @@
+// Questionnaire de l'outil « Suivi et évaluation » (chaînes de valeur inclusives, PNUD), repris du classeur Excel
+// « Outil de suivi et d'évaluation » : 50 questions en 9 rubriques (+ la rubrique 0 « Mise en œuvre »).
+//  - `once` : question posée une seule fois (saisie initiale) ; les autres sont posées deux fois, au début (initiale) et à la clôture (finale).
+//  - Valeurs enregistrées : choice → numéro de l'option (1, 2, …) ; multi → liste de numéros ; list → code de la liste ;
+//    number / money / percent → nombre (money en FCFA, percent de 0 à 100) ; text / longtext → texte.
+//  - `showIf` : la question n'est posée que si la réponse d'une autre question est l'une des options indiquées.
+// Textes repris mot pour mot de l'Excel, avec les corrections et adaptations au Cameroun décidées avec le PNUD
+// (traduction de « VBG », « Canvas », exemples Jumia / Sage / Mobile Money).
+
+const { CITI1, CITI2, CITI3 } = require('./suivi-citi');
+
+const YES_NO = ['Oui', 'Non'];
+
+const REGIONS = [
+    'Adamaoua', 'Centre', 'Est', 'Extrême-Nord', 'Littoral', 'Nord', 'Nord-Ouest', 'Ouest', 'Sud', 'Sud-Ouest'
+].map(r => ({ code: r, label: r }));
+
+const SECTIONS = [
+    { id: '0', title: 'Mise en œuvre', icon: 'bi-flag' },
+    { id: 'I', title: "Informations générales sur le décideur de l'entreprise", icon: 'bi-person-badge',
+      note: "Le décideur de l'entreprise est la personne chargée de la prise de décision finale au sein de l'organisation. Il s'agit parfois du propriétaire de l'entreprise, d'autres fois du directeur général, etc." },
+    { id: 'II', title: "Informations générales sur l'entreprise", icon: 'bi-building' },
+    { id: 'III', title: "Création d'emplois", icon: 'bi-people' },
+    { id: 'IV', title: 'Opérations et ventes', icon: 'bi-cart-check' },
+    { id: 'V', title: 'Gestion financière', icon: 'bi-cash-coin' },
+    { id: 'VI', title: "Culture d'entreprise", icon: 'bi-heart-pulse' },
+    { id: 'VII', title: 'Numérisation', icon: 'bi-pc-display' },
+    { id: 'VIII', title: 'Gestion des risques de catastrophes', icon: 'bi-shield-exclamation' },
+    { id: 'IX', title: 'Gestion environnementale', icon: 'bi-tree' },
+];
+
+const Q = [
+    // ── 0. Mise en œuvre ────────────────────────────────────────────────────────
+    { key: 'q0', section: '0', once: true, type: 'choice', label: 'Méthodologie appliquée',
+      options: ['SYB', 'GYB', 'SDP', 'En cours', 'En cours de mise en œuvre numérique'] },
+
+    // ── I. Décideur ─────────────────────────────────────────────────────────────
+    { key: 'q1', section: 'I', once: true, type: 'choice', label: 'Genre',
+      options: ['Femme', 'Homme', 'Non binaire', 'Je préfère ne pas préciser'] },
+    { key: 'q2', section: 'I', once: true, type: 'number', label: 'Âge', min: 0, max: 120, unit: 'ans' },
+    { key: 'q3', section: 'I', once: true, type: 'choice', label: "Niveau d'études",
+      options: ['Primaire', 'Technique', 'Université', 'Troisième cycle', 'Sans formation formelle', 'Préfère ne pas préciser'] },
+    { key: 'q4', section: 'I', once: true, type: 'choice', optional: true, compact: true,
+      label: 'Cette activité est-elle votre principale source de revenus ?',
+      note: "Ignorer cette question si la méthodologie s'applique au SDP.", options: YES_NO },
+
+    // ── II. Entreprise ──────────────────────────────────────────────────────────
+    { key: 'id_raison', section: 'II', once: true, type: 'text', label: "Raison sociale de l'entreprise", prefill: 'name' },
+    { key: 'q5', section: 'II', once: true, type: 'choice', label: 'Forme juridique de votre entreprise',
+      options: ['Entreprise individuelle', 'SARL', 'SARLU', 'SA', 'SAS', 'GIC', 'Société coopérative', 'GIE', 'Entreprise non enregistrée'] },
+    { key: 'id_region', section: 'II', once: true, type: 'list', list: 'regions', label: 'Région', prefill: 'region' },
+    { key: 'id_ville', section: 'II', once: true, type: 'text', label: 'Ville', prefill: 'ville' },
+    { key: 'id_activite', section: 'II', once: true, type: 'longtext', label: "Décrivez l'activité économique spécifique de l'entreprise", prefill: 'secteur' },
+    { key: 'q6', section: 'II', once: true, type: 'list', list: 'citi1', label: 'CITI à un chiffre' },
+    { key: 'id_citi2', section: 'II', once: true, type: 'list', list: 'citi2', label: 'CITI à deux chiffres' },
+    { key: 'id_citi3', section: 'II', once: true, type: 'list', list: 'citi3', label: 'CITI à trois chiffres' },
+    { key: 'q7', section: 'II', once: true, type: 'number', min: 0, max: 200, unit: 'ans',
+      label: "Années d'activité (période pendant laquelle l'entreprise exerce activement ses activités ; cette durée peut différer du nombre d'années écoulées depuis sa création)" },
+    { key: 'q8', section: 'II', type: 'choice', compact: true,
+      label: "Votre entreprise dispose-t-elle d'un enregistrement légal en cours de validité ?", options: YES_NO },
+    { key: 'q9', section: 'II', type: 'choice', label: "Votre entreprise s'acquitte-t-elle de ses obligations fiscales ?",
+      options: ['Oui', 'Non', 'Partiellement', 'Je ne sais pas'] },
+    { key: 'q10', section: 'II', type: 'choice', compact: true,
+      label: "Votre entreprise participe-t-elle à des réseaux, des plateformes ou des espaces favorisant les alliances stratégiques et la collaboration avec d'autres organisations ?",
+      options: YES_NO },
+    { key: 'q11', section: 'II', type: 'multi', optional: true, showIf: { key: 'q10', anyOf: [1] },
+      label: 'Si la réponse est oui, précisez lesquels.', note: 'Plusieurs réponses possibles. À ignorer si la réponse précédente est « Non ».',
+      options: ['Chambres de commerce locales, nationales ou internationales', 'Réseaux commerciaux sectoriels',
+                'Réseaux de développement durable et de RSE', 'Incubateurs et accélérateurs',
+                'Communautés professionnelles en ligne (groupes LinkedIn, plateformes B2B)'] },
+    { key: 'q12', section: 'II', type: 'choice',
+      label: "Avez-vous, ou un membre de votre équipe, suivi une formation formelle liée à la gestion et au fonctionnement de l'entreprise ?\n(Par exemple : cours, ateliers, diplômes en gestion, finance, marketing, etc.)",
+      options: ["Oui, nous avons suivi une formation officielle en gestion et en exploitation de l'entreprise.",
+                'Nous sommes en train de suivre une formation (nous sommes inscrits ou participons actuellement à une formation).',
+                "Non, nous n'avons pas suivi de formation officielle en gestion et en exploitation de l'entreprise."] },
+
+    // ── III. Création d'emplois ─────────────────────────────────────────────────
+    { key: 'q13', section: 'III', type: 'number', min: 0, max: 100000, unit: 'personnes', prefill: 'nbr_employer',
+      label: "Combien de personnes au total travaillent actuellement dans votre entreprise ? S'il s'agit d'une entreprise individuelle, incluez le propriétaire. Incluez également le personnel temporaire et permanent." },
+    { key: 'q14', section: 'III', type: 'number', min: 0, max: 100000, unit: 'femmes', prefill: 'nbr_femme',
+      label: 'Combien de femmes votre entreprise emploie-t-elle actuellement ?\nNe pas inclure la propriétaire. Inclure le personnel temporaire et permanent.' },
+    { key: 'q15', section: 'III', type: 'number', min: 0, max: 100000, unit: 'hommes',
+      label: "Combien d'hommes votre entreprise emploie-t-elle actuellement ? Ne pas inclure le propriétaire. Inclure le personnel temporaire et permanent." },
+    { key: 'q16', section: 'III', type: 'number', min: 0, max: 100000, unit: 'jeunes',
+      label: "Combien de jeunes (femmes et hommes) votre entreprise emploie-t-elle actuellement ?\nNe pas inclure le/la propriétaire. Inclure le personnel temporaire et permanent.\nOn considère comme « jeune » toute personne âgée de 18 à 29 ans." },
+    { key: 'q17', section: 'III', type: 'number', min: 0, max: 100000, unit: 'personnes',
+      label: "Combien de personnes en situation de handicap votre entreprise emploie-t-elle actuellement ?\nNe pas inclure le/la propriétaire. Inclure le personnel temporaire et permanent.",
+      note: "Les handicaps peuvent être classés en handicaps physiques, visuels/auditifs, intellectuels, psychosociaux ou multiples. Cette question ne nécessite pas de préciser le type de handicap." },
+    { key: 'q18', section: 'III', type: 'number', min: 0, max: 100000, unit: 'personnes',
+      label: "Combien de personnes en situation de vulnérabilité votre entreprise emploie-t-elle actuellement ?\nNe pas inclure le/la propriétaire. Inclure le personnel temporaire et permanent.",
+      note: "Une personne en situation de vulnérabilité est une personne qui subit de multiples désavantages structurels (économiques, sociaux, sanitaires, liés au genre, ethniques, territoriaux, etc.)" },
+    { key: 'q19', section: 'III', type: 'choice', compact: true,
+      label: "Disposez-vous d'un processus de recrutement garantissant l'inclusion et la non-discrimination ?", options: YES_NO },
+
+    // ── IV. Opérations et ventes ────────────────────────────────────────────────
+    { key: 'q20', section: 'IV', type: 'choice', compact: true,
+      label: 'Votre entreprise tient-elle un registre ordonné et régulier de ses ventes et de ses coûts ?\n(Cela implique de noter régulièrement toutes les ventes et les coûts associés, afin de pouvoir calculer des indicateurs tels que la marge brute).',
+      options: YES_NO },
+    { key: 'q21', section: 'IV', type: 'money', min: 0, unit: 'FCFA',
+      label: "Quel est le chiffre d'affaires mensuel moyen de votre entreprise, en FCFA ? (Si votre activité est saisonnière, calculez la moyenne en divisant le chiffre d'affaires total de la dernière année civile par 12 mois)." },
+    { key: 'q22', section: 'IV', type: 'percent', min: 0, max: 100, unit: '%',
+      label: 'Quelle est la marge (%) de bénéfice brut de votre entreprise ?',
+      note: "Il est important, si cette donnée n'est pas disponible, d'aider à la calculer et à l'ajouter. La marge brute est un indicateur financier qui montre la rentabilité de l'entreprise avant de prendre en compte les frais d'exploitation, les impôts et autres coûts indirects. Elle est calculée à partir du chiffre d'affaires et du coût direct de production des biens ou des services." },
+    { key: 'q23', section: 'IV', type: 'number', min: 0, max: 1000000, unit: 'heures par mois',
+      label: "Quel est le nombre total approximatif d'heures travaillées par mois ?",
+      note: "Le nombre total d'heures travaillées correspond à la somme de toutes les heures travaillées par l'ensemble des salariés de l'entreprise au cours d'une période donnée." },
+    { key: 'q24', section: 'IV', type: 'number', min: 0, max: 100000000, unit: 'par mois',
+      label: "Combien de produits votre entreprise fabrique-t-elle ou combien de services fournit-elle en moyenne par mois ?\n(Indiquez un chiffre approximatif en tenant compte de la production ou de la prestation habituelle. Si votre entreprise est saisonnière, calculez la moyenne mensuelle en divisant le total annuel par 12).",
+      note: "Cette question est importante car elle nous permet de connaître le volume de produits fabriqués ou de services fournis par votre entreprise. Grâce à ces informations, nous pouvons calculer des indicateurs clés tels que la productivité et l'innovation en matière de produits, qui sont essentiels pour évaluer la performance et la croissance de l'entreprise." },
+    { key: 'q25', section: 'IV', type: 'choice', compact: true,
+      label: 'Au cours des 3 derniers mois, votre entreprise a-t-elle lancé de nouveaux produits ou services, ou a-t-elle innové sur les produits ou services existants (par exemple, améliorations en matière de conception, de fonctionnalité ou de processus) ?',
+      options: YES_NO },
+    { key: 'q26', section: 'IV', type: 'choice',
+      label: "En moyenne, combien de clients finaux (particuliers) votre entreprise sert-elle par mois ?\n(Si votre entreprise est saisonnière, calculez la moyenne mensuelle en divisant le nombre total de clients servis au cours de la dernière année par 12).",
+      options: ['Entre 0 et 10', '11 à 20', '21 à 50', 'Plus de 50'] },
+    { key: 'q27', section: 'IV', type: 'choice',
+      label: "En moyenne, combien de clients professionnels (entreprises ou autres entités enregistrées fiscalement) votre entreprise sert-elle chaque mois ?\n(Si votre activité est saisonnière, calculez la moyenne mensuelle en divisant le nombre total de clients professionnels servis au cours de la dernière année par 12).",
+      note: "N'incluez que les entreprises ou organisations enregistrées fiscalement qui achètent directement vos produits ou services, à l'exclusion des distributeurs et des consommateurs finaux.",
+      options: ['Entre 0 et 10', '11 à 20', '21 à 50', 'Plus de 50'] },
+    { key: 'q28', section: 'IV', type: 'number', min: 0, max: 1000, unit: 'canaux',
+      label: 'Combien de canaux de vente votre entreprise possède-t-elle ? Indiquez le nombre' },
+    { key: 'q29', section: 'IV', type: 'multi',
+      label: 'Quels sont les principaux canaux de vente de votre entreprise ?', note: 'Sélection multiple.',
+      options: ['Magasin physique', 'Site web propre', 'Réseaux sociaux', 'Distributeurs / Grossistes',
+                'Plateformes de vente en ligne (par ex. Jumia)', 'Force de vente / ventes directes (équipe commerciale)', 'Autres'] },
+    { key: 'q30', section: 'IV', type: 'choice', label: 'Dans quelle mesure considérez-vous que votre entreprise est compétitive ?',
+      options: ['Très faible : notre entreprise a des difficultés à être compétitive dans son secteur.',
+                'Faible : nous sommes en dessous de la moyenne du secteur.',
+                'Moyen : nous sommes compétitifs sur certains aspects, mais il subsiste encore plusieurs lacunes.',
+                'Élevé : Nous sommes compétitifs et, à bien des égards, nous nous situons au-dessus de la moyenne.',
+                'Très élevé : nous sommes leaders ou une référence sur notre marché.'] },
+    { key: 'q31', section: 'IV', type: 'choice',
+      label: 'Votre entreprise segmente-t-elle le marché selon des critères démographiques, psychographiques ou liés au genre ?',
+      options: ['Oui, nous utilisons des critères démographiques, psychographiques et liés au genre.',
+                'Oui, nous utilisons certains de ces critères (par exemple, uniquement les critères démographiques ou de genre).',
+                'Non, nous ne segmentons pas le marché selon ces critères.',
+                'Sans objet (nos produits/services ne nécessitent pas de segmentation).'] },
+    { key: 'q32', section: 'IV', type: 'choice',
+      label: "Votre entreprise dispose-t-elle d'éléments d'identité visuelle, tels qu'un logo, des couleurs d'entreprise et un design cohérent sur l'ensemble de ses supports ?",
+      options: ["Non, l'entreprise ne dispose d'aucun élément d'image de marque.",
+                'Oui, nous disposons de quelques éléments de base (par exemple, uniquement un logo).',
+                "Oui, nous disposons de plusieurs éléments d'image de marque, mais ils ne sont pas utilisés de manière cohérente.",
+                "Oui, nous disposons d'une identité visuelle complète (logo, couleurs, polices, charte graphique) qui est appliquée de manière cohérente.",
+                "Oui, nous disposons d'une identité visuelle complète ainsi que d'un manuel de marque officiellement établi."] },
+
+    // ── V. Gestion financière ───────────────────────────────────────────────────
+    { key: 'q33', section: 'V', type: 'choice', label: 'Comment décririez-vous le niveau de gestion financière ?',
+      options: ["Inexistants : aucune comptabilité des ventes et des dépenses n'est tenue, aucun contrôle de la trésorerie n'est effectué, aucun logiciel ni tableur n'est utilisé, les décisions financières sont prises de manière réactive.",
+                "Éléments de base : les recettes et les dépenses sont consignées dans des cahiers ou des registres manuels, la trésorerie n'est vérifiée qu'en cas de problèmes de liquidités, il n'y a pas de budgets formels, aucun logiciel n'est utilisé, seuls des calculs manuels sont effectués.",
+                "Niveau intermédiaire : le suivi des coûts s'effectue à l'aide de tableurs, les prévisions de trésorerie mensuelles sont établies, un budget annuel de base est établi et un logiciel de comptabilité simple (pour la facturation) est utilisé.",
+                "Avancé : processus standardisés pour le contrôle des coûts et l'analyse de rentabilité, prévisions de trésorerie trimestrielles, utilisation de logiciels de comptabilité spécialisés (Sage, etc.), rapports financiers périodiques pour la prise de décision."] },
+    { key: 'q34', section: 'V', type: 'choice',
+      label: "L'entreprise sépare-t-elle de manière satisfaisante les finances personnelles des finances de l'entreprise ?",
+      options: ["Non, les finances personnelles et celles de l'entreprise ne sont pas séparées.",
+                "En partie : ils sont séparés dans la plupart des cas, bien qu'il arrive parfois qu'ils soient mélangés.",
+                'Oui, les comptes sont totalement séparés et des mécanismes formels sont en place (comptes distincts, registres comptables, contrôles).'] },
+    { key: 'q35', section: 'V', type: 'choice', compact: true,
+      label: 'Avez-vous suivi une formation en éducation financière au cours des 12 derniers mois ?', options: YES_NO },
+    { key: 'q36', section: 'V', type: 'choice', label: 'Votre entreprise utilise-t-elle son propre compte bancaire pour ses opérations ?',
+      options: ["Oui, l'entreprise dispose d'un compte bancaire professionnel au nom de l'entreprise.",
+                "L'entreprise ne dispose pas de compte professionnel, mais utilise le compte bancaire personnel du propriétaire pour les opérations de l'entreprise.",
+                "Aucun compte bancaire n'est utilisé pour les opérations de l'entreprise."] },
+    { key: 'q37', section: 'V', type: 'multi',
+      label: "Quel(s) type(s) de financement externe votre entreprise a-t-elle utilisé au cours des 24 derniers mois ?", note: "Sélectionnez toutes les réponses qui s'appliquent.",
+      options: ["Prêts informels : crédits obtenus en dehors du système financier formel, par exemple auprès de prêteurs, d'amis ou de connaissances.",
+                "Fonds familiaux : ressources financières apportées par des membres de la famille pour financer l'entreprise.",
+                'Prêt bancaire', 'Investissement privé', 'Transferts de fonds familiaux', 'Dons', "Je n'ai reçu aucun financement externe"] },
+
+    // ── VI. Culture d'entreprise ────────────────────────────────────────────────
+    { key: 'q38', section: 'VI', type: 'choice',
+      label: 'Votre entreprise dispose-t-elle de pratiques et/ou de politiques interdisant expressément la violence basée sur le genre (VBG) ?',
+      options: ["Il n'existe aucune politique ni pratique en matière de violence basée sur le genre (VBG).",
+                "Il existe des pratiques informelles qui découragent la violence basée sur le genre (VBG), mais elles ne sont pas systématiques.",
+                "Il existe au moins un document ou une procédure, mais sa mise en œuvre est partielle.",
+                'La politique est mise en œuvre et connue du personnel.',
+                'La politique est mise en œuvre, le personnel est formé et un mécanisme de signalement est en place.'] },
+    { key: 'q39', section: 'VI', type: 'choice',
+      label: 'Votre entreprise a-t-elle explicitement défini son modèle économique (par exemple, proposition de valeur, segments de clientèle, canaux de distribution, sources de revenus, coûts, etc.) ?',
+      options: ["Nous n'avons pas de modèle économique défini.",
+                "Nous connaissons certains éléments (par exemple, les clients ou la proposition de valeur), mais cela n'est pas structuré.",
+                'La plupart des éléments sont définis, mais sans documentation officielle.',
+                "Nous disposons d'un modèle économique complet et documenté (exemple : Business Model Canvas).",
+                'Le modèle économique est documenté, révisé régulièrement et guide les décisions stratégiques.'] },
+    { key: 'q40', section: 'VI', type: 'choice',
+      label: 'Votre entreprise établit-elle des objectifs et des stratégies annuels ainsi que des processus de planification stratégique pour orienter ses activités ?',
+      options: ["Oui, nous disposons d'un plan stratégique formel et documenté.",
+                "Oui, nous définissons des objectifs annuels, mais nous ne disposons pas d'un plan stratégique formel.",
+                "Nous sommes en train d'élaborer des objectifs et/ou un plan stratégique.",
+                "Nous ne réalisons pas de planification stratégique et ne fixons pas d'objectifs annuels."] },
+    { key: 'q41', section: 'VI', type: 'choice', label: "Votre entreprise promeut-elle l'égalité salariale ?",
+      options: ['Oui, nous disposons de politiques claires et mises en œuvre', 'Oui, de manière informelle (sans politiques écrites)',
+                'Non, mais nous sommes en train de les mettre en œuvre.', 'Non'] },
+    { key: 'q42', section: 'VI', type: 'choice',
+      label: 'Quel est le niveau de participation des femmes de votre entreprise aux instances décisionnelles ?',
+      options: ["Nulle : aucune femme n'occupe de poste décisionnel.",
+                'Faible : elles participent occasionnellement, sans assumer de rôles de direction.',
+                'Moyenne : certaines occupent des postes de direction et participent régulièrement.',
+                'Niveau élevé : elles participent activement et occupent des postes clés.',
+                'Très élevée : elles occupent une position dominante et exercent une influence significative.'] },
+
+    // ── VII. Numérisation ───────────────────────────────────────────────────────
+    { key: 'q43', section: 'VII', type: 'choice',
+      label: 'Quelle est la présence numérique de votre entreprise (site web, réseaux sociaux, e-commerce) ? Sélectionnez les principales plateformes.',
+      options: ['Aucune : pas de présence numérique.', 'Réseaux sociaux uniquement : Facebook, Instagram, TikTok.',
+                'Réseaux sociaux + site web.', 'Réseaux sociaux + site web + e-commerce.',
+                'Écosystème numérique complet (intégration avec un CRM, publicité numérique, analyse de données).'] },
+    { key: 'q44', section: 'VII', type: 'choice', label: 'Utilisez-vous des logiciels pour la gestion de votre entreprise ?',
+      note: "Par « logiciel », nous entendons tout programme ou système d'exploitation qui aide l'entreprise à gérer ses opérations. Cela va de Microsoft à des logiciels de gestion (SAP, Oracle).",
+      options: ["Nous n'utilisons aucun logiciel pour gérer l'entreprise.",
+                'Nous utilisons des outils bureautiques de base (par ex. Microsoft Excel, Word).',
+                'Nous utilisons des logiciels spécialisés pour des tâches spécifiques (par exemple, la facturation, la gestion des stocks, la comptabilité).',
+                'Nous utilisons un système de gestion intégré pour plusieurs domaines (par ex. Sage).',
+                "Nous utilisons un ERP d'entreprise avancé (par ex. SAP, Oracle, Microsoft Dynamics)."] },
+    { key: 'q45', section: 'VII', type: 'choice',
+      label: 'À quelle fréquence votre entreprise utilise-t-elle des moyens de paiement numériques (Mobile Money, cartes, virements) ?',
+      options: ["Nous n'utilisons aucun moyen de paiement numérique.",
+                'Nous utilisons les paiements numériques uniquement pour recevoir des paiements.',
+                'Nous utilisons les paiements numériques uniquement pour effectuer des paiements.',
+                'Nous utilisons les paiements numériques aussi bien pour encaisser que pour payer, mais pas régulièrement.',
+                'Nous utilisons régulièrement les paiements numériques pour la plupart de nos transactions.'] },
+
+    // ── VIII. Gestion des risques de catastrophes ───────────────────────────────
+    { key: 'q46', section: 'VIII', type: 'choice', compact: true,
+      label: 'Votre entreprise a-t-elle identifié les principaux risques auxquels elle est confrontée ?', options: YES_NO },
+    { key: 'q47', section: 'VIII', type: 'choice',
+      label: 'Quel pourcentage de vos employés a suivi une formation à la gestion des risques de catastrophe ?',
+      options: ['0 % : aucun employé formé.', "1 % - 25 % : très peu d'employés formés.",
+                '26 % - 50 % : Environ la moitié du personnel a suivi une formation.',
+                '51 % - 75 % : la majorité du personnel a été formée.',
+                '76 % - 100 % : Tout ou presque tout le personnel est formé.'] },
+    { key: 'q48', section: 'VIII', type: 'choice', label: 'Existe-t-il un plan de continuité des activités documenté et mis à jour ?',
+      options: ["Nous ne disposons pas d'un plan de continuité des activités.",
+                "Nous disposons de mesures informelles en cas d'urgence, mais pas d'un plan de continuité des activités formel.",
+                "Nous disposons d'un plan de continuité des activités, mais il doit être mis à jour.",
+                "Nous disposons d'un plan de continuité des activités à jour, qui est révisé et communiqué au personnel."] },
+
+    // ── IX. Gestion environnementale ────────────────────────────────────────────
+    { key: 'q49', section: 'IX', type: 'choice',
+      label: 'Votre entreprise a-t-elle mis en place des pratiques pour une gestion adéquate des déchets solides générés par ses activités ?\n(Par exemple : tri, recyclage, élimination en toute sécurité, collecte par des prestataires agréés).',
+      options: ["Oui, nous disposons d'un système formel de gestion des déchets solides (tri, recyclage et élimination en toute sécurité).",
+                'Oui, nous mettons en œuvre certaines pratiques de base (par exemple, le tri partiel ou la remise à des collecteurs informels).',
+                'Non, nous ne disposons pas de pratiques spécifiques pour la gestion des déchets solides.',
+                'Sans objet (notre entreprise ne génère pas de déchets solides significatifs).'] },
+    { key: 'q50', section: 'IX', type: 'choice', label: "Contrôlez-vous la consommation d'eau et d'énergie de votre entreprise ?",
+      options: ["Oui, nous surveillons la consommation d'eau et d'énergie.", "Oui, nous contrôlons uniquement la consommation d'eau.",
+                "Oui, nous contrôlons uniquement la consommation d'énergie.", "Non, nous ne contrôlons ni la consommation d'eau ni celle d'énergie."] },
+];
+
+const LISTS = { regions: REGIONS, citi1: CITI1, citi2: CITI2, citi3: CITI3 };
+const LIST_CODES = Object.fromEntries(Object.entries(LISTS).map(([k, v]) => [k, new Set(v.map(x => x.code))]));
+const BY_KEY = Object.fromEntries(Q.map(q => [q.key, q]));
+
+/** Questions posées pour une phase : la saisie finale ne repose que sur les questions répétées. */
+const questionsOf = phase => Q.filter(q => phase === 'initial' || !q.once);
+
+module.exports = { SECTIONS, QUESTIONS: Q, LISTS, LIST_CODES, BY_KEY, questionsOf };

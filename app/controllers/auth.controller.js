@@ -8,30 +8,40 @@ const Op = db.Sequelize.Op;
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { removeUpload } = require("../middleware/upload");
+const { roleNames } = require("../middleware/access");
+
+// La page d'inscription est publique : le jeton n'est donc pas exigé, mais s'il est présent on regarde si l'appelant est administrateur.
+async function callerIsAdmin(req) {
+  let token = req.headers["x-access-token"] || req.headers["authorization"];
+  if (token && token.startsWith("Bearer ")) token = token.slice(7);
+  if (!token) return false;
+  try {
+    const { id } = jwt.verify(token, config.secret);
+    return (await roleNames(id)).includes("admin");
+  } catch (e) {
+    return false;
+  }
+}
 
 exports.signup = async (req, res) => {
   try {
+    // Sans précision, le compte est un compte consultant. Tout autre rôle (administrateur, évaluateur, modérateur, entreprise)
+    // ne peut être attribué que par un administrateur connecté : avant, n'importe qui pouvait s'inscrire avec le rôle « admin ».
+    const requested = Array.isArray(req.body.roles) && req.body.roles.length > 0 ? req.body.roles : ["consultant"];
+    if (requested.some(name => name !== "consultant") && !(await callerIsAdmin(req))) {
+      return res.status(403).send({ message: "Seul un administrateur peut attribuer ce rôle." });
+    }
+
     const user = await User.create({
       username: req.body.username,
       email: req.body.email,
       password: bcrypt.hashSync(req.body.password, 8),
     });
 
-    if (req.body.roles && Array.isArray(req.body.roles) && req.body.roles.length > 0) {
-      const roles = await Role.findAll({
-        where: {
-          name: {
-            [Op.or]: req.body.roles,
-          },
-        },
-      });
-      const result = user.setRoles(roles);
-      if (result) res.send({ message: "User registered successfully!" });
-    } else {
-      // Rôle par défaut : consultant (id=3)
-      const result = user.setRoles([3]);
-      if (result) res.send({ message: "User registered successfully!" });
-    }
+    // Un seul rôle par utilisateur : on retient le premier demandé
+    const roles = await Role.findAll({ where: { name: requested[0] } });
+    await user.setRoles(roles);
+    res.send({ message: "User registered successfully!" });
   } catch (error) {
     res.status(500).send({ message: error.message });
   }

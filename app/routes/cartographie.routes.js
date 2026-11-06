@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { con, query, getConnection, toId, isEmpty } = require('../config/dbhelpers');
+const { COMPANY_GUARD_SQL, vagueLock, sendLock } = require('../config/vagues');
 const fx = require('../config/fx.config');
 const { isManager } = require('../middleware/access');
 
@@ -113,9 +114,10 @@ router.post('/', async (req, res) => {
     let c;
     try {
         // L'entreprise doit exister et être suivie par ce consultant
-        const [company] = await query(con, 'SELECT id_consl FROM entreprises WHERE id = ?', [compId]);
+        const [company] = await query(con, COMPANY_GUARD_SQL, [compId]);
         if (!company) return res.status(404).json({ message: "Entreprise introuvable." });
         if (company.id_consl !== req.userId) return res.status(403).json({ message: "Cette entreprise ne vous est pas attribuée." });
+        { const lock = vagueLock(company); if (lock) return sendLock(res, lock); }
 
         c = await getConnection();
         await query(c, 'START TRANSACTION');
